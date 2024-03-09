@@ -9,6 +9,16 @@ const (
 	Personal = 1
 )
 
+func (at AccountType) String() string {
+	switch at {
+	case Business:
+		return "Conta PJ"
+	case Personal:
+		return "Conta PF"
+	}
+	return "Invalid Account type"
+}
+
 type Account struct {
 	ID          uuid.UUID
 	Name        string
