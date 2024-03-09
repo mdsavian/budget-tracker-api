@@ -20,10 +20,10 @@ func (at AccountType) String() string {
 }
 
 type Account struct {
-	ID          uuid.UUID
-	Name        string
-	Balance     int64
-	AccountType AccountType
+	ID          uuid.UUID   `json:"id"`
+	Name        string      `json:"name"`
+	Balance     int64       `json:"balance"`
+	AccountType AccountType `json:"accountType"`
 }
 
 func NewAccount(name string, accountType AccountType) *Account {
