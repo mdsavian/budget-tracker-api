@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -48,7 +49,7 @@ func (s *APIServer) Start() {
 	router := mux.NewRouter()
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 
-	log.Println("Server running on port : ", s.listenAddr)
+	log.Println("Server running on port: ", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
 }
@@ -64,11 +65,10 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, req *http.Request) erro
 		s.handleDeleteAccount(w, req)
 	}
 
-	return nil
+	return fmt.Errorf("method not allowed %s", req.Method)
 }
 
 func (s *APIServer) handleGetAccount(w http.ResponseWriter, req *http.Request) error {
-
 	return nil
 }
 

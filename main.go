@@ -1,5 +1,6 @@
 package main
 
 func main() {
-	println("hello world")
+	server := NewApiServer(":8090")
+	server.Start()
 }
