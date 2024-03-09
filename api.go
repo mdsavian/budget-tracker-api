@@ -10,8 +10,8 @@ import (
 )
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
-	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
 
@@ -47,38 +47,42 @@ func NewApiServer(listenAddr string) *APIServer {
 
 func (s *APIServer) Start() {
 	router := mux.NewRouter()
+
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-
+	//	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccount))
 	log.Println("Server running on port: ", s.listenAddr)
-
 	http.ListenAndServe(s.listenAddr, router)
 }
 
-func (s *APIServer) handleAccount(w http.ResponseWriter, req *http.Request) error {
+func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
 
-	switch req.Method {
+	switch r.Method {
 	case "GET":
-		return s.handleGetAccount(w, req)
+		return s.handleGetAccount(w, r)
 	case "POST":
-		s.handleCreateAccount(w, req)
+		s.handleCreateAccount(w, r)
 	case "DELETE":
-		s.handleDeleteAccount(w, req)
+		s.handleDeleteAccount(w, r)
 	}
 
-	return fmt.Errorf("method not allowed %s", req.Method)
+	return fmt.Errorf("method not allowed %s", r.Method)
 }
 
-func (s *APIServer) handleGetAccount(w http.ResponseWriter, req *http.Request) error {
+func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) error {
+
+	//	vars := mux.Vars(r)
+	//	id := vars["id"]
+
 	account := NewAccount("Bradesco", AccountType(0))
 	return WriteJSON(w, http.StatusOK, account)
 }
 
-func (s *APIServer) handleCreateAccount(w http.ResponseWriter, req *http.Request) error {
+func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 
 	return nil
 }
 
-func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, req *http.Request) error {
+func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
 
 	return nil
 }
