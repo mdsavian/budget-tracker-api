@@ -2,28 +2,22 @@ package main
 
 import "github.com/google/uuid"
 
-type AccountType int
+type AccountType string
 
 const (
-	Business = 0
-	Personal = 1
+	Business = "Conta PJ"
+	Personal = "Conta PF"
 )
 
 func (at AccountType) String() string {
-	switch at {
-	case Business:
-		return "Conta PJ"
-	case Personal:
-		return "Conta PF"
-	}
-	return "Invalid Account type"
+	return string(at)
 }
 
 type Account struct {
 	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
 	Balance     int64       `json:"balance"`
-	AccountType AccountType `json:"accountType"`
+	AccountType AccountType `json:"account_type"`
 }
 
 func NewAccount(name string, accountType AccountType) *Account {
