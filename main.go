@@ -11,7 +11,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//	server := NewApiServer(":8090")
-	//
-	// server.Start()
+	server := NewApiServer(":8090", store)
+	server.Start()
 }
