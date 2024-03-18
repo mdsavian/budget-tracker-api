@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -13,6 +12,7 @@ type Storage interface {
 	DeleteAccount(uuid.UUID) error
 	UpdateAccount(uuid.UUID) error
 	GetAccountByID(uuid.UUID) (*Account, error)
+	GetAccounts() ([]*Account, error)
 }
 
 type PostgresStore struct {
@@ -63,8 +63,6 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 		return err
 	}
 
-	fmt.Println("%+v\n %+v", resp, err)
-
 	return nil
 
 }
@@ -79,4 +77,29 @@ func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
 
 func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
 	return nil, nil
+}
+
+func (s *PostgresStore) GetAccounts() ([]*Account, error) {
+	rows, err := s.db.Query("select * from account")
+	if err != nil {
+		return nil, err
+	}
+
+	accounts := []*Account{}
+
+	for rows.Next() {
+		account := &Account{}
+		err := rows.Scan(
+			&account.ID,
+			&account.CreatedAt,
+			&account.UpdatedAt,
+			&account.Balance,
+			&account.Name,
+			&account.AccountType)
+		if err != nil {
+			return nil, err
+		}
+		accounts = append(accounts, account)
+	}
+	return accounts, nil
 }
