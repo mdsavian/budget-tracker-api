@@ -36,9 +36,9 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 	case "GET":
 		return s.handleGetAccount(w, r)
 	case "POST":
-		s.handleCreateAccount(w, r)
+		return s.handleCreateAccount(w, r)
 	case "DELETE":
-		s.handleDeleteAccount(w, r)
+		return s.handleDeleteAccount(w, r)
 	}
 
 	return fmt.Errorf("method not allowed %s", r.Method)
@@ -54,7 +54,20 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+
+	createNewAccountInput := CreateNewAccountInput{}
+
+	if err := json.NewDecoder(r.Body).Decode(&createNewAccountInput); err != nil {
+		return err
+	}
+
+	account := NewAccount(createNewAccountInput.Name, AccountType(createNewAccountInput.AccountType))
+
+	if err := s.store.CreateAccount(account); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, account)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
