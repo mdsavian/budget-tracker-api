@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -42,6 +43,7 @@ func (s *PostgresStore) CreateAccountTable() error {
 				id UUID primary key NOT NULL, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
+				balance bigint NOT NULL, 
 				name varchar (200) NOT NULL, 
 				account_type varchar (50) NOT null
 				)`
@@ -51,8 +53,20 @@ func (s *PostgresStore) CreateAccountTable() error {
 
 }
 
-func (s *PostgresStore) CreateAccount(*Account) error {
+func (s *PostgresStore) CreateAccount(acc *Account) error {
+	query := `insert into account 
+	(id, name, account_type, balance, created_at, updated_at)
+	values ($1, $2, $3, $4, $5, $6)`
+
+	resp, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("%+v\n %+v", resp, err)
+
 	return nil
+
 }
 
 func (s *PostgresStore) UpdateAccount(id uuid.UUID) error {
