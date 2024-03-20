@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -46,10 +47,18 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 
-	//	vars := mux.Vars(r)
-	//	id := vars["id"]
+	vars := mux.Vars(r)
+	id := vars["id"]
 
-	account := NewAccount("Bradesco", AccountType(0))
+	uAcountID, err := uuid.Parse(id)
+	if err != nil {
+		return err
+	}
+
+	account, err := s.store.GetAccountByID(uAcountID)
+	if err != nil {
+		return err
+	}
 	return WriteJSON(w, http.StatusOK, account)
 }
 

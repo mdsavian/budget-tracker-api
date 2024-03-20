@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -81,15 +82,11 @@ func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
 	if err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		account, err := scanIntoAccount(rows)
-		if err != nil {
-			return nil, err
-		}
-		return account, nil
 
+	for rows.Next() {
+		return scanIntoAccount(rows)
 	}
-	return nil, nil
+	return nil, fmt.Errorf("account %s not found", id)
 
 }
 
