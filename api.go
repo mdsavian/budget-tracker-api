@@ -26,7 +26,7 @@ func (s *APIServer) Start() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleGetAccountByID))
+	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleAccountByID))
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
 }
@@ -38,7 +38,18 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 		return s.handleGetAccounts(w, r)
 	case "POST":
 		return s.handleCreateAccount(w, r)
-	case "DELETE":
+	}
+
+	return fmt.Errorf("method not allowed %s", r.Method)
+}
+
+func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) error {
+
+	if r.Method == "GET" {
+		return s.handleGetAccountByID(w, r)
+	}
+
+	if r.Method == "DELETE" {
 		return s.handleDeleteAccount(w, r)
 	}
 
@@ -47,15 +58,13 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	uAcountID, err := uuid.Parse(id)
+	uAccountID, err := getAndParseAccountID(r)
 	if err != nil {
 		return err
+
 	}
 
-	account, err := s.store.GetAccountByID(uAcountID)
+	account, err := s.store.GetAccountByID(uAccountID)
 	if err != nil {
 		return err
 	}
@@ -63,7 +72,6 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-
 	createNewAccountInput := CreateNewAccountInput{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createNewAccountInput); err != nil {
@@ -80,17 +88,40 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	uAccountID, err := getAndParseAccountID(r)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.store.GetAccountByID(uAccountID); err != nil {
+		return err
+	}
+
+	if err := s.store.DeleteAccount(uAccountID); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, "Account deleted successfully")
 }
 
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
-
 	accounts, err := s.store.GetAccounts()
 	if err != nil {
 		return err
 	}
 
 	return WriteJSON(w, http.StatusOK, accounts)
+}
+
+func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
+	id := mux.Vars(r)["id"]
+	uAccountId, err := uuid.Parse(id)
+	if err != nil {
+		return uAccountId, fmt.Errorf("error parsing account id")
+	}
+
+	return uAccountId, nil
+
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
