@@ -58,7 +58,7 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 	(id, name, account_type, balance, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
-	resp, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
+	_, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,21 @@ func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
 }
 
 func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
+	query := "select * from account where account.id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		account, err := scanIntoAccount(rows)
+		if err != nil {
+			return nil, err
+		}
+		return account, nil
+
+	}
 	return nil, nil
+
 }
 
 func (s *PostgresStore) GetAccounts() ([]*Account, error) {
@@ -88,18 +102,23 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	accounts := []*Account{}
 
 	for rows.Next() {
-		account := &Account{}
-		err := rows.Scan(
-			&account.ID,
-			&account.CreatedAt,
-			&account.UpdatedAt,
-			&account.Balance,
-			&account.Name,
-			&account.AccountType)
+		account, err := scanIntoAccount(rows)
 		if err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, account)
 	}
 	return accounts, nil
+}
+
+func scanIntoAccount(rows *sql.Rows) (*Account, error) {
+	account := &Account{}
+	err := rows.Scan(
+		&account.ID,
+		&account.CreatedAt,
+		&account.UpdatedAt,
+		&account.Balance,
+		&account.Name,
+		&account.AccountType)
+	return account, err
 }
