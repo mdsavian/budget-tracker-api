@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -124,8 +125,22 @@ func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
 
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func validateJWT(tokenString string) (*jwt.Token, error) {
+	// TODO create an env var for this
+	const jwtSecret = "test9999"
 
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return []byte(jwtSecret), nil
+	})
+
+	return token, err
+}
+
+func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Calling JWT auth middleware")
 		handlerFunc(w, r)
