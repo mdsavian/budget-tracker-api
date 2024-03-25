@@ -26,7 +26,7 @@ func (s *APIServer) Start() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", makeHTTPHandleFunc(s.handleAccountByID))
+	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID)))
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
 }
@@ -122,6 +122,14 @@ func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
 
 	return uAccountId, nil
 
+}
+
+func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("Calling JWT auth middleware")
+		handlerFunc(w, r)
+	}
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
