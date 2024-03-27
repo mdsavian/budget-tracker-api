@@ -11,6 +11,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// create an env var for this
+const jwtSecret = "test9999"
+
 type APIServer struct {
 	listenAddr string
 	store      Storage
@@ -85,6 +88,11 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
+	tokenString, err := createJWT(account)
+	if err != nil {
+		return err
+	}
+	fmt.Println("token string: ", tokenString)
 	return WriteJSON(w, http.StatusOK, account)
 }
 
@@ -126,9 +134,6 @@ func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
 }
 
 func validateJWT(tokenString string) (*jwt.Token, error) {
-	// TODO create an env var for this
-	const jwtSecret = "test9999"
-
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -142,9 +147,25 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 
 func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Calling JWT auth middleware")
+		fmt.Println("Calling JWT auth middleware")
+		tokenString := r.Header.Get("x-jwt-token")
+		_, err := validateJWT(tokenString)
+
+		if err != nil {
+			WriteJSON(w, http.StatusUnauthorized, ApiError{Error: "Invalid token"})
+			return
+		}
+
 		handlerFunc(w, r)
 	}
+}
+
+func createJWT(account *Account) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"expiresAt": 15000,
+		"accountID": account,
+	})
+	return token.SignedString([]byte(jwtSecret))
 }
 
 func WriteJSON(w http.ResponseWriter, status int, v any) error {
