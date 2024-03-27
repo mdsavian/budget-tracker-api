@@ -49,11 +49,10 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 
 func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) error {
 
-	if r.Method == "GET" {
+	switch r.Method {
+	case "GET":
 		return s.handleGetAccountByID(w, r)
-	}
-
-	if r.Method == "DELETE" {
+	case "DELETE":
 		return s.handleDeleteAccount(w, r)
 	}
 
