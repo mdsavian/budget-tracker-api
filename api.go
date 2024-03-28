@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -30,13 +31,13 @@ func (s *APIServer) Start() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID)))
+	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID), s.store))
+
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, router)
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
-
 	switch r.Method {
 	case "GET":
 		return s.handleGetAccounts(w, r)
@@ -48,7 +49,6 @@ func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error 
 }
 
 func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) error {
-
 	switch r.Method {
 	case "GET":
 		return s.handleGetAccountByID(w, r)
@@ -60,11 +60,9 @@ func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) er
 }
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
-
 	uAccountID, err := getAndParseAccountID(r)
 	if err != nil {
 		return err
-
 	}
 
 	account, err := s.store.GetAccountByID(uAccountID)
@@ -129,7 +127,6 @@ func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
 	}
 
 	return uAccountId, nil
-
 }
 
 func validateJWT(tokenString string) (*jwt.Token, error) {
@@ -144,14 +141,51 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 	return token, err
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
+func permissionDenied(w http.ResponseWriter) {
+	WriteJSON(w, http.StatusUnauthorized, ApiError{Error: "Permission denied"})
+}
+
+func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Calling JWT auth middleware")
-		tokenString := r.Header.Get("x-jwt-token")
-		_, err := validateJWT(tokenString)
 
+		// TODO change the name of the header -- might convert to cookies
+		tokenString := r.Header.Get("x-jwt-token")
+		token, err := validateJWT(tokenString)
 		if err != nil {
-			WriteJSON(w, http.StatusUnauthorized, ApiError{Error: "Invalid token"})
+			permissionDenied(w)
+			return
+		}
+		if !token.Valid {
+			permissionDenied(w)
+			return
+		}
+
+		accountId, err := getAndParseAccountID(r)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+		account, err := s.GetAccountByID(accountId)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+		claimAccountID, ok := claims["accountID"].(string)
+		if !ok {
+			permissionDenied(w)
+			return
+		}
+		uClaimAccountID, err := uuid.Parse(claimAccountID)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		if account.ID != uClaimAccountID {
+			permissionDenied(w)
 			return
 		}
 
@@ -159,11 +193,18 @@ func withJWTAuth(handlerFunc http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+type JWTClaims struct {
+	accountID uuid.UUID
+	jwt.RegisteredClaims
+}
+
 func createJWT(account *Account) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"expiresAt": 15000,
-		"accountID": account,
-	})
+	claims := JWTClaims{
+		account.ID,
+		jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+		}}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(jwtSecret))
 }
 
