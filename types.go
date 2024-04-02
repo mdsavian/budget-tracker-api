@@ -4,7 +4,37 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type User struct {
+	ID                uuid.UUID `json:"id"`
+	Name              string    `json:"name"`
+	Email             string    `json:"email"`
+	EncryptedPassword string    `json:"-"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func NewUser(name, email, password string) (*User, error) {
+	encriptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	return &User{
+		ID:                uuid.Must(uuid.NewV7()),
+		Name:              name,
+		EncryptedPassword: string(encriptedPassword),
+		Email:             email,
+		CreatedAt:         time.Now().UTC(),
+		UpdatedAt:         time.Now().UTC(),
+	}, nil
+}
 
 type AccountType string
 
