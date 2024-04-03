@@ -20,17 +20,22 @@ type User struct {
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
+type CreateNewUserInput struct {
+	Name     string
+	Email    string
+	Password string
+}
 
-func NewUser(name, email, password string) (*User, error) {
-	encriptedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func NewUser(input CreateNewUserInput) (*User, error) {
+	encriptedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 	return &User{
 		ID:                uuid.Must(uuid.NewV7()),
-		Name:              name,
+		Name:              input.Name,
 		EncryptedPassword: string(encriptedPassword),
-		Email:             email,
+		Email:             input.Email,
 		CreatedAt:         time.Now().UTC(),
 		UpdatedAt:         time.Now().UTC(),
 	}, nil

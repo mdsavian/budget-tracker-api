@@ -14,6 +14,7 @@ type Storage interface {
 	UpdateAccount(uuid.UUID) error
 	GetAccountByID(uuid.UUID) (*Account, error)
 	GetAccounts() ([]*Account, error)
+	CreateUser(*User) error
 }
 
 type PostgresStore struct {
@@ -36,9 +37,49 @@ func NewPostgresStore() (*PostgresStore, error) {
 }
 
 func (s *PostgresStore) Init() error {
-	return s.CreateAccountTable()
+	return s.createTables()
 }
 
+func (s *PostgresStore) createTables() error {
+	if err := s.CreateAccountTable(); err != nil {
+		return err
+	}
+
+	if err := s.CreateUserTable(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// User
+func (s *PostgresStore) CreateUserTable() error {
+	query := `create table if not exists "user" (
+				id UUID primary key NOT NULL, 
+				created_at timestamptz NOT NULL, 
+				updated_at timestamptz NOT NULL, 
+				name varchar (200) NOT NULL, 
+				email varchar (200) NOT NULL, 
+				password varchar NOT NULL
+				)`
+	_, err := s.db.Query(query)
+	return err
+}
+
+func (s *PostgresStore) CreateUser(user *User) error {
+	query := `insert into "user" 
+	(id, name, email, password, created_at, updated_at)
+	values ($1, $2, $3, $4, $5, $6)`
+
+	_, err := s.db.Query(query, user.ID, user.Name, user.Email, user.EncryptedPassword, user.CreatedAt, user.UpdatedAt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Account
 func (s *PostgresStore) CreateAccountTable() error {
 	query := `create table if not exists account (
 				id UUID primary key NOT NULL, 
@@ -48,10 +89,8 @@ func (s *PostgresStore) CreateAccountTable() error {
 				name varchar (200) NOT NULL, 
 				account_type varchar (50) NOT null
 				)`
-
 	_, err := s.db.Query(query)
 	return err
-
 }
 
 func (s *PostgresStore) CreateAccount(acc *Account) error {
@@ -65,7 +104,6 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 	}
 
 	return nil
-
 }
 
 func (s *PostgresStore) UpdateAccount(id uuid.UUID) error {

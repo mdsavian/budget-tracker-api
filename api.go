@@ -30,6 +30,7 @@ func NewApiServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Start() {
 	router := mux.NewRouter()
 
+	router.HandleFunc("/user", makeHTTPHandleFunc(s.handleCreateUser))
 	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID), s.store))
@@ -46,6 +47,25 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	return WriteJSON(w, http.StatusOK, req)
+}
+
+func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
+	createNewUserInput := CreateNewUserInput{}
+
+	if err := json.NewDecoder(r.Body).Decode(&createNewUserInput); err != nil {
+		return err
+	}
+
+	user, err := NewUser(createNewUserInput)
+	if err != nil {
+		return err
+	}
+
+	if err := s.store.CreateUser(user); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, user)
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
