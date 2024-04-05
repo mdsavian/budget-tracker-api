@@ -44,8 +44,8 @@ func NewUser(input CreateNewUserInput) (*User, error) {
 type AccountType string
 
 const (
-	Business = "Conta PJ"
-	Personal = "Conta PF"
+	AccountTypeBusiness AccountType = "Conta PJ"
+	AccountTypePersonal AccountType = "Conta PF"
 )
 
 func (at AccountType) String() string {
