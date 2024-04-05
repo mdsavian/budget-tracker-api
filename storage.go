@@ -11,10 +11,11 @@ import (
 type Storage interface {
 	CreateAccount(*Account) error
 	DeleteAccount(uuid.UUID) error
-	UpdateAccount(uuid.UUID) error
 	GetAccountByID(uuid.UUID) (*Account, error)
 	GetAccounts() ([]*Account, error)
 	CreateUser(*User) error
+	DeleteUser(uuid.UUID) error
+	GetUserByID(uuid.UUID) (*User, error)
 }
 
 type PostgresStore struct {
@@ -79,6 +80,32 @@ func (s *PostgresStore) CreateUser(user *User) error {
 	return nil
 }
 
+func (s *PostgresStore) GetUserByEmail(email string) (*User, error) {
+	query := "select * from user where email = $1"
+	rows, err := s.db.Query(query, email)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		user := &User{}
+		err := rows.Scan(
+			&user.ID,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+			&user.Name,
+			&user.Email,
+			&user.EncryptedPassword)
+		if err != nil {
+			return nil, err
+		}
+
+		return user, nil
+	}
+
+	return nil, fmt.Errorf("user with email %s not found", email)
+}
+
 // Account
 func (s *PostgresStore) CreateAccountTable() error {
 	query := `create table if not exists account (
@@ -103,10 +130,6 @@ func (s *PostgresStore) CreateAccount(acc *Account) error {
 		return err
 	}
 
-	return nil
-}
-
-func (s *PostgresStore) UpdateAccount(id uuid.UUID) error {
 	return nil
 }
 

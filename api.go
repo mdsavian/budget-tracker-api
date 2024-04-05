@@ -30,8 +30,10 @@ func NewApiServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Start() {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/user", makeHTTPHandleFunc(s.handleCreateUser))
 	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
+
+	router.HandleFunc("/user", makeHTTPHandleFunc(s.handleCreateUser))
+
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID), s.store))
 
@@ -45,7 +47,6 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}
-
 	return WriteJSON(w, http.StatusOK, req)
 }
 
@@ -66,6 +67,23 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 	}
 
 	return WriteJSON(w, http.StatusOK, user)
+}
+
+func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
+	uUserID, err := getAndParseIDFromRequest(r)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.store.GetUserByID(uUserID); err != nil {
+		return err
+	}
+
+	if err := s.store.DeleteUser(uUserID); err != nil {
+		return err
+	}
+
+	return WriteJSON(w, http.StatusOK, "Account deleted successfully")
 }
 
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
@@ -91,7 +109,7 @@ func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) er
 }
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
-	uAccountID, err := getAndParseAccountID(r)
+	uAccountID, err := getAndParseIDFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -110,7 +128,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	account := NewAccount(createNewAccountInput.Name, AccountType(createNewAccountInput.AccountType))
+	account := NewAccount(createNewAccountInput.Name, createNewAccountInput.AccountType)
 
 	if err := s.store.CreateAccount(account); err != nil {
 		return err
@@ -125,7 +143,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
-	uAccountID, err := getAndParseAccountID(r)
+	uAccountID, err := getAndParseIDFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -150,11 +168,11 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 	return WriteJSON(w, http.StatusOK, accounts)
 }
 
-func getAndParseAccountID(r *http.Request) (uuid.UUID, error) {
+func getAndParseIDFromRequest(r *http.Request) (uuid.UUID, error) {
 	id := mux.Vars(r)["id"]
 	uAccountId, err := uuid.Parse(id)
 	if err != nil {
-		return uAccountId, fmt.Errorf("error parsing account id")
+		return uAccountId, fmt.Errorf("error parsing id from request")
 	}
 
 	return uAccountId, nil
@@ -192,7 +210,7 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 			return
 		}
 
-		accountId, err := getAndParseAccountID(r)
+		accountId, err := getAndParseIDFromRequest(r)
 		if err != nil {
 			permissionDenied(w)
 			return
