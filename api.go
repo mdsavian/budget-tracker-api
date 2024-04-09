@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 )
 
 // create an env var for this
@@ -30,18 +30,20 @@ func NewApiServer(listenAddr string, store Storage) *APIServer {
 }
 
 func (s *APIServer) Start() {
-	router := mux.NewRouter()
+	mux := http.NewServeMux()
 
-	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
+	mux.HandleFunc("POST /user", makeHTTPHandleFunc(s.handleCreateUser))
+	mux.HandleFunc("DELETE /user/{id}", makeHTTPHandleFunc(s.handleDeleteUser))
 
-	router.HandleFunc("/user", makeHTTPHandleFunc(s.handleCreateUser))
-	router.HandleFunc("/user/{id}", makeHTTPHandleFunc(s.handleUser))
+	mux.HandleFunc("POST /account", makeHTTPHandleFunc(s.handleCreateAccount))
+	mux.HandleFunc("GET /account", makeHTTPHandleFunc(s.handleGetAccounts))
+	mux.HandleFunc("GET /account/{id}", makeHTTPHandleFunc(s.handleGetAccountByID))
+	mux.HandleFunc("DELETE /account/{id}", makeHTTPHandleFunc(s.handleDeleteAccount))
 
-	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
-	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID), s.store))
+	mux.HandleFunc("POST /login", makeHTTPHandleFunc(s.handleLogin))
 
 	log.Println("Server running on port: ", s.listenAddr)
-	http.ListenAndServe(s.listenAddr, router)
+	http.ListenAndServe(s.listenAddr, mux)
 }
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
@@ -55,7 +57,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	user, err := s.store.GetUserByEmail(req.Email)
+	_, err := s.store.GetUserByEmail(req.Email)
 	if err != nil {
 		return WriteJSON(w, http.StatusNotFound, "User not found")
 	}
@@ -114,28 +116,6 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 }
 
 // Account
-func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
-	switch r.Method {
-	case "GET":
-		return s.handleGetAccounts(w, r)
-	case "POST":
-		return s.handleCreateAccount(w, r)
-	}
-
-	return fmt.Errorf("method not allowed %s", r.Method)
-}
-
-func (s *APIServer) handleAccountByID(w http.ResponseWriter, r *http.Request) error {
-	switch r.Method {
-	case "GET":
-		return s.handleGetAccountByID(w, r)
-	case "DELETE":
-		return s.handleDeleteAccount(w, r)
-	}
-
-	return fmt.Errorf("method not allowed %s", r.Method)
-}
-
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
 	uAccountID, err := getAndParseIDFromRequest(r)
 	if err != nil {
@@ -192,7 +172,7 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 }
 
 func getAndParseIDFromRequest(r *http.Request) (uuid.UUID, error) {
-	id := mux.Vars(r)["id"]
+	id := r.PathValue("id")
 	uAccountId, err := uuid.Parse(id)
 	if err != nil {
 		return uAccountId, fmt.Errorf("error parsing id from request")
