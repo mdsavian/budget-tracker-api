@@ -15,6 +15,8 @@ import (
 // create an env var for this
 const jwtSecret = "test9999"
 
+const ErrMethodNotAllowed = "method not allowed"
+
 type APIServer struct {
 	listenAddr string
 	store      Storage
@@ -33,6 +35,7 @@ func (s *APIServer) Start() {
 	router.HandleFunc("/login", makeHTTPHandleFunc(s.handleLogin))
 
 	router.HandleFunc("/user", makeHTTPHandleFunc(s.handleCreateUser))
+	router.HandleFunc("/user/{id}", makeHTTPHandleFunc(s.handleUser))
 
 	router.HandleFunc("/account", makeHTTPHandleFunc(s.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(s.handleAccountByID), s.store))
@@ -50,7 +53,12 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	return WriteJSON(w, http.StatusOK, req)
 }
 
+// User
 func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf(ErrMethodNotAllowed)
+	}
+
 	createNewUserInput := CreateNewUserInput{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createNewUserInput); err != nil {
@@ -69,6 +77,15 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 	return WriteJSON(w, http.StatusOK, user)
 }
 
+func (s *APIServer) handleUser(w http.ResponseWriter, r *http.Request) error {
+	switch r.Method {
+	case "DELETE":
+		return s.handleDeleteUser(w, r)
+	}
+
+	return fmt.Errorf(ErrMethodNotAllowed)
+}
+
 func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
 	uUserID, err := getAndParseIDFromRequest(r)
 	if err != nil {
@@ -83,9 +100,10 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, "Account deleted successfully")
+	return WriteJSON(w, http.StatusOK, "User deleted successfully")
 }
 
+// Account
 func (s *APIServer) handleAccount(w http.ResponseWriter, r *http.Request) error {
 	switch r.Method {
 	case "GET":
