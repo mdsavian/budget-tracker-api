@@ -80,6 +80,13 @@ func (s *PostgresStore) CreateUser(user *User) error {
 	return nil
 }
 
+func (s *PostgresStore) DeleteUser(id uuid.UUID) error {
+	query := `delete from "user" where id = $1`
+
+	_, err := s.db.Query(query, id)
+	return err
+}
+
 func (s *PostgresStore) GetUserByEmail(email string) (*User, error) {
 	query := "select * from user where email = $1"
 	rows, err := s.db.Query(query, email)
@@ -88,22 +95,37 @@ func (s *PostgresStore) GetUserByEmail(email string) (*User, error) {
 	}
 
 	for rows.Next() {
-		user := &User{}
-		err := rows.Scan(
-			&user.ID,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-			&user.Name,
-			&user.Email,
-			&user.EncryptedPassword)
-		if err != nil {
-			return nil, err
-		}
-
-		return user, nil
+		return scanIntoUser(rows)
 	}
 
 	return nil, fmt.Errorf("user with email %s not found", email)
+}
+
+func (s *PostgresStore) GetUserByID(id uuid.UUID) (*User, error) {
+	query := `select * from "user" where id = $1`
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoUser(rows)
+	}
+
+	return nil, fmt.Errorf("user with id %v not found", id)
+}
+
+func scanIntoUser(rows *sql.Rows) (*User, error) {
+	user := &User{}
+	err := rows.Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+		&user.Name,
+		&user.Email,
+		&user.EncryptedPassword)
+
+	return user, err
 }
 
 // Account
@@ -150,7 +172,7 @@ func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
 	for rows.Next() {
 		return scanIntoAccount(rows)
 	}
-	return nil, fmt.Errorf("account %s not found", id)
+	return nil, fmt.Errorf("account %v not found", id)
 
 }
 
