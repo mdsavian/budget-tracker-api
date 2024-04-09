@@ -16,6 +16,7 @@ type Storage interface {
 	CreateUser(*User) error
 	DeleteUser(uuid.UUID) error
 	GetUserByID(uuid.UUID) (*User, error)
+	GetUserByEmail(string) (*User, error)
 }
 
 type PostgresStore struct {

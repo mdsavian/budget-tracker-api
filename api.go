@@ -45,11 +45,21 @@ func (s *APIServer) Start() {
 }
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf(ErrMethodNotAllowed)
+	}
+
 	var req LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}
+
+	user, err := s.store.GetUserByEmail(req.Email)
+	if err != nil {
+		return WriteJSON(w, http.StatusNotFound, "User not found")
+	}
+
 	return WriteJSON(w, http.StatusOK, req)
 }
 
@@ -152,11 +162,6 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	tokenString, err := createJWT(account)
-	if err != nil {
-		return err
-	}
-	fmt.Println("token string: ", tokenString)
 	return WriteJSON(w, http.StatusOK, account)
 }
 
