@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 )
-
-// create an env var for this
-const jwtSecret = "test9999"
 
 const ErrMethodNotAllowed = "method not allowed"
 
@@ -182,6 +180,7 @@ func getAndParseIDFromRequest(r *http.Request) (uuid.UUID, error) {
 }
 
 func validateJWT(tokenString string) (*jwt.Token, error) {
+	jwtSecret := os.Getenv("JWT_SECRET")
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -251,6 +250,7 @@ type JWTClaims struct {
 }
 
 func createJWT(account *Account) (string, error) {
+	jwtSecret := os.Getenv("JWT_SECRET")
 	claims := JWTClaims{
 		account.ID,
 		jwt.RegisteredClaims{
