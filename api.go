@@ -56,11 +56,13 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	_, err := s.store.GetUserByEmail(req.Email)
+	// TODO check if the error is user not found otherwise return only the error
 	if err != nil {
-		return WriteJSON(w, http.StatusNotFound, "User not found")
+		respondWithJSON(w, http.StatusNotFound, "User not found")
 	}
 
-	return WriteJSON(w, http.StatusOK, req)
+	respondWithJSON(w, http.StatusOK, req)
+	return nil
 }
 
 // User
@@ -84,16 +86,8 @@ func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, user)
-}
-
-func (s *APIServer) handleUser(w http.ResponseWriter, r *http.Request) error {
-	switch r.Method {
-	case "DELETE":
-		return s.handleDeleteUser(w, r)
-	}
-
-	return fmt.Errorf(ErrMethodNotAllowed)
+	respondWithJSON(w, http.StatusOK, user)
+	return nil
 }
 
 func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
@@ -110,7 +104,8 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, "User deleted successfully")
+	respondWithJSON(w, http.StatusOK, "User deleted successfully")
+	return nil
 }
 
 // Account
@@ -124,7 +119,9 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		return err
 	}
-	return WriteJSON(w, http.StatusOK, account)
+
+	respondWithJSON(w, http.StatusOK, account)
+	return nil
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -140,7 +137,8 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, account)
+	respondWithJSON(w, http.StatusOK, account)
+	return nil
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -157,7 +155,8 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, "Account deleted successfully")
+	respondWithJSON(w, http.StatusOK, "Account deleted successfully")
+	return nil
 }
 
 func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
@@ -166,7 +165,8 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 
-	return WriteJSON(w, http.StatusOK, accounts)
+	respondWithJSON(w, http.StatusOK, accounts)
+	return nil
 }
 
 func getAndParseIDFromRequest(r *http.Request) (uuid.UUID, error) {
@@ -193,7 +193,7 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	WriteJSON(w, http.StatusUnauthorized, ApiError{Error: "Permission denied"})
+	respondWithJSON(w, http.StatusUnauthorized, ApiError{Error: "Permission denied"})
 }
 
 func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
@@ -260,10 +260,15 @@ func createJWT(account *Account) (string, error) {
 	return token.SignedString([]byte(jwtSecret))
 }
 
-func WriteJSON(w http.ResponseWriter, status int, v any) error {
+func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Failed to marshal JSON response: %v", payload)
+	}
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
+	w.WriteHeader(statusCode)
+	w.Write(data)
+
 }
 
 type ApiError struct {
@@ -281,7 +286,7 @@ func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		err := f(w, r)
 		if err != nil {
-			WriteJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
+			respondWithJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
 		}
 	}
 }
