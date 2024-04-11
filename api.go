@@ -35,7 +35,7 @@ func (s *APIServer) Start() {
 
 	mux.HandleFunc("POST /account", makeHTTPHandleFunc(s.handleCreateAccount))
 	mux.HandleFunc("GET /account", makeHTTPHandleFunc(s.handleGetAccounts))
-	mux.HandleFunc("GET /account/{id}", makeHTTPHandleFunc(s.handleGetAccountByID))
+	mux.HandleFunc("GET /account/{id}", s.handleGetAccountByID)
 	mux.HandleFunc("DELETE /account/{id}", makeHTTPHandleFunc(s.handleDeleteAccount))
 
 	mux.HandleFunc("POST /login", makeHTTPHandleFunc(s.handleLogin))
@@ -109,19 +109,20 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 }
 
 // Account
-func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) {
 	uAccountID, err := getAndParseIDFromRequest(r)
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	account, err := s.store.GetAccountByID(uAccountID)
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, account)
-	return nil
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
@@ -258,6 +259,20 @@ func createJWT(account *Account) (string, error) {
 		}}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(jwtSecret))
+}
+
+func respondWithError(w http.ResponseWriter, statusCode int, message string) {
+	type errorResponse struct {
+		Error string `json:"error"`
+	}
+
+	if statusCode > 499 {
+		log.Println("Respond with 5XX error:", message)
+	}
+
+	respondWithJSON(w, statusCode, errorResponse{
+		Error: message,
+	})
 }
 
 func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{}) {
