@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-const ErrMethodNotAllowed = "method not allowed"
+const ErrMethodNotAllowed = "Method not allowed"
 
 type APIServer struct {
 	listenAddr string
@@ -30,82 +30,89 @@ func NewApiServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Start() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /user", makeHTTPHandleFunc(s.handleCreateUser))
-	mux.HandleFunc("DELETE /user/{id}", makeHTTPHandleFunc(s.handleDeleteUser))
+	mux.HandleFunc("POST /user", s.handleCreateUser)
+	mux.HandleFunc("DELETE /user/{id}", s.handleDeleteUser)
 
-	mux.HandleFunc("POST /account", makeHTTPHandleFunc(s.handleCreateAccount))
-	mux.HandleFunc("GET /account", makeHTTPHandleFunc(s.handleGetAccounts))
+	mux.HandleFunc("POST /account", s.handleCreateAccount)
+	mux.HandleFunc("GET /account", s.handleGetAccounts)
 	mux.HandleFunc("GET /account/{id}", s.handleGetAccountByID)
-	mux.HandleFunc("DELETE /account/{id}", makeHTTPHandleFunc(s.handleDeleteAccount))
+	mux.HandleFunc("DELETE /account/{id}", s.handleDeleteAccount)
 
-	mux.HandleFunc("POST /login", makeHTTPHandleFunc(s.handleLogin))
+	mux.HandleFunc("POST /login", s.handleLogin)
 
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, mux)
 }
 
-func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		return fmt.Errorf(ErrMethodNotAllowed)
+		respondWithError(w, http.StatusBadRequest, ErrMethodNotAllowed)
+		return
 	}
 
 	var req LoginRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	_, err := s.store.GetUserByEmail(req.Email)
 	// TODO check if the error is user not found otherwise return only the error
 	if err != nil {
-		respondWithJSON(w, http.StatusNotFound, "User not found")
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, req)
-	return nil
 }
 
 // User
-func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
-		return fmt.Errorf(ErrMethodNotAllowed)
+		respondWithError(w, http.StatusBadRequest, ErrMethodNotAllowed)
+		return
 	}
 
 	createNewUserInput := CreateNewUserInput{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createNewUserInput); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	user, err := NewUser(createNewUserInput)
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if err := s.store.CreateUser(user); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, user)
-	return nil
 }
 
-func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	uUserID, err := getAndParseIDFromRequest(r)
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if _, err := s.store.GetUserByID(uUserID); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if err := s.store.DeleteUser(uUserID); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, "User deleted successfully")
-	return nil
 }
 
 // Account
@@ -125,56 +132,59 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, account)
 }
 
-func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
 	createNewAccountInput := CreateNewAccountInput{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createNewAccountInput); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	account := NewAccount(createNewAccountInput.Name, createNewAccountInput.AccountType)
 
 	if err := s.store.CreateAccount(account); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, account)
-	return nil
 }
 
-func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) {
 	uAccountID, err := getAndParseIDFromRequest(r)
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if _, err := s.store.GetAccountByID(uAccountID); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if err := s.store.DeleteAccount(uAccountID); err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, "Account deleted successfully")
-	return nil
 }
 
-func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) error {
+func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) {
 	accounts, err := s.store.GetAccounts()
 	if err != nil {
-		return err
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	respondWithJSON(w, http.StatusOK, accounts)
-	return nil
 }
 
 func getAndParseIDFromRequest(r *http.Request) (uuid.UUID, error) {
 	id := r.PathValue("id")
 	uAccountId, err := uuid.Parse(id)
 	if err != nil {
-		return uAccountId, fmt.Errorf("error parsing id from request")
+		return uuid.Nil, fmt.Errorf("error parsing id from request")
 	}
 
 	return uAccountId, nil
@@ -194,7 +204,7 @@ func validateJWT(tokenString string) (*jwt.Token, error) {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	respondWithJSON(w, http.StatusUnauthorized, ApiError{Error: "Permission denied"})
+	respondWithError(w, http.StatusUnauthorized, "Permission deined")
 }
 
 func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
@@ -284,24 +294,4 @@ func respondWithJSON(w http.ResponseWriter, statusCode int, payload interface{})
 	w.WriteHeader(statusCode)
 	w.Write(data)
 
-}
-
-type ApiError struct {
-	Error string `json:"error"`
-}
-
-/*
-* Declared this type and the makeHttpHandleFunc function because we need to deal with the error
-* the core func HandlerFunc doesn't support the error so we need to convert it
-* to be able to use inside the mux
- */
-type apiFunc func(http.ResponseWriter, *http.Request) error
-
-func makeHTTPHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		err := f(w, r)
-		if err != nil {
-			respondWithJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
-		}
-	}
 }
