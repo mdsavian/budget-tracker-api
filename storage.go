@@ -7,18 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
+	"github.com/mdsavian/budget-tracker-api/types"
 )
-
-type Storage interface {
-	CreateAccount(*Account) error
-	DeleteAccount(uuid.UUID) error
-	GetAccountByID(uuid.UUID) (*Account, error)
-	GetAccounts() ([]*Account, error)
-	CreateUser(*User) error
-	DeleteUser(uuid.UUID) error
-	GetUserByID(uuid.UUID) (*User, error)
-	GetUserByEmail(string) (*User, error)
-}
 
 type PostgresStore struct {
 	db *sql.DB
@@ -73,7 +63,7 @@ func (s *PostgresStore) CreateUserTable() error {
 	return err
 }
 
-func (s *PostgresStore) CreateUser(user *User) error {
+func (s *PostgresStore) CreateUser(user *types.User) error {
 	query := `insert into "user" 
 	(id, name, email, password, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
@@ -93,7 +83,7 @@ func (s *PostgresStore) DeleteUser(id uuid.UUID) error {
 	return err
 }
 
-func (s *PostgresStore) GetUserByEmail(email string) (*User, error) {
+func (s *PostgresStore) GetUserByEmail(email string) (*types.User, error) {
 	query := "select * from user where email = $1"
 	rows, err := s.db.Query(query, email)
 	if err != nil {
@@ -107,7 +97,7 @@ func (s *PostgresStore) GetUserByEmail(email string) (*User, error) {
 	return nil, fmt.Errorf("user with email %s not found", email)
 }
 
-func (s *PostgresStore) GetUserByID(id uuid.UUID) (*User, error) {
+func (s *PostgresStore) GetUserByID(id uuid.UUID) (*types.User, error) {
 	query := `select * from "user" where id = $1`
 	rows, err := s.db.Query(query, id)
 	if err != nil {
@@ -121,8 +111,8 @@ func (s *PostgresStore) GetUserByID(id uuid.UUID) (*User, error) {
 	return nil, fmt.Errorf("user with id %v not found", id)
 }
 
-func scanIntoUser(rows *sql.Rows) (*User, error) {
-	user := &User{}
+func scanIntoUser(rows *sql.Rows) (*types.User, error) {
+	user := &types.User{}
 	err := rows.Scan(
 		&user.ID,
 		&user.CreatedAt,
@@ -148,7 +138,7 @@ func (s *PostgresStore) CreateAccountTable() error {
 	return err
 }
 
-func (s *PostgresStore) CreateAccount(acc *Account) error {
+func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 	query := `insert into account 
 	(id, name, account_type, balance, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
@@ -168,7 +158,7 @@ func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
 	return err
 }
 
-func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
+func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*types.Account, error) {
 	query := "select * from account where id = $1"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
@@ -182,13 +172,13 @@ func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*Account, error) {
 
 }
 
-func (s *PostgresStore) GetAccounts() ([]*Account, error) {
+func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
 	rows, err := s.db.Query("select * from account")
 	if err != nil {
 		return nil, err
 	}
 
-	accounts := []*Account{}
+	accounts := []*types.Account{}
 
 	for rows.Next() {
 		account, err := scanIntoAccount(rows)
@@ -200,8 +190,8 @@ func (s *PostgresStore) GetAccounts() ([]*Account, error) {
 	return accounts, nil
 }
 
-func scanIntoAccount(rows *sql.Rows) (*Account, error) {
-	account := &Account{}
+func scanIntoAccount(rows *sql.Rows) (*types.Account, error) {
+	account := &types.Account{}
 	err := rows.Scan(
 		&account.ID,
 		&account.CreatedAt,
