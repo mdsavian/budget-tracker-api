@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
+	apiserver "github.com/mdsavian/budget-tracker-api/api-server"
 )
 
 func main() {
@@ -19,11 +20,12 @@ func main() {
 	if err := store.Init(); err != nil {
 		log.Fatal(err)
 	}
-	portString := os.Getenv("PORT")
 
+	portString := os.Getenv("PORT")
 	if portString == "" {
 		log.Fatal("PORT is not found in the environment")
 	}
-	server := NewApiServer(fmt.Sprintf(":%s", portString), store)
+
+	server := apiserver.NewServer(fmt.Sprintf(":%s", portString), store)
 	server.Start()
 }
