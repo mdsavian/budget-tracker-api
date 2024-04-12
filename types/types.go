@@ -1,4 +1,4 @@
-package main
+package types
 
 import (
 	"time"
@@ -6,6 +6,17 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
+
+type Storage interface {
+	CreateAccount(*Account) error
+	DeleteAccount(uuid.UUID) error
+	GetAccountByID(uuid.UUID) (*Account, error)
+	GetAccounts() ([]*Account, error)
+	CreateUser(*User) error
+	DeleteUser(uuid.UUID) error
+	GetUserByID(uuid.UUID) (*User, error)
+	GetUserByEmail(string) (*User, error)
+}
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -26,6 +37,7 @@ type CreateNewUserInput struct {
 	Password string
 }
 
+// TODO move this
 func NewUser(input CreateNewUserInput) (*User, error) {
 	encriptedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -56,6 +68,7 @@ type CreateNewAccountInput struct {
 	Name        string      `json:"name"`
 	AccountType AccountType `json:"account_type"`
 }
+
 type Account struct {
 	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
@@ -65,6 +78,7 @@ type Account struct {
 	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
+// TODO move this
 func NewAccount(name string, accountType AccountType) *Account {
 	return &Account{
 		ID:          uuid.Must(uuid.NewV7()),
