@@ -7,17 +7,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Storage interface {
-	CreateAccount(*Account) error
-	DeleteAccount(uuid.UUID) error
-	GetAccountByID(uuid.UUID) (*Account, error)
-	GetAccounts() ([]*Account, error)
-	CreateUser(*User) error
-	DeleteUser(uuid.UUID) error
-	GetUserByID(uuid.UUID) (*User, error)
-	GetUserByEmail(string) (*User, error)
-}
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`

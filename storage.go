@@ -15,12 +15,13 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	postgresPort := os.Getenv("POSTGRES_PORT")
-	postgresUser := os.Getenv("POSTGRES_USER")
-	postgresPass := os.Getenv("POSTGRES_PASS")
-	postgresDbName := os.Getenv("POSTGRES_DB_NAME")
+	postgresPort := os.Getenv("DB_PORT")
+	postgresUser := os.Getenv("DB_USER")
+	postgresPass := os.Getenv("DB_PASS")
+	postgresDbName := os.Getenv("DB_NAME")
+	dbSSL := os.Getenv("DB_SSL")
 
-	connStr := fmt.Sprintf("user=%s dbname=%s password=%s port=%s sslmode=disable", postgresUser, postgresDbName, postgresPass, postgresPort)
+	connStr := fmt.Sprintf("user=%s dbname=%s password=%s port=%s sslmode=%s", postgresUser, postgresDbName, postgresPass, postgresPort, dbSSL)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
