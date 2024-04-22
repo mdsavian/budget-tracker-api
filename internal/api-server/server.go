@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/mdsavian/budget-tracker-api/types"
+	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
 type Storage interface {

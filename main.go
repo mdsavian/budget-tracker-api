@@ -6,13 +6,14 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	apiserver "github.com/mdsavian/budget-tracker-api/api-server"
+	apiserver "github.com/mdsavian/budget-tracker-api/internal/api-server"
+	storage "github.com/mdsavian/budget-tracker-api/internal/storage"
 )
 
 func main() {
 	godotenv.Load(".env")
 
-	store, err := NewPostgresStore()
+	store, err := storage.NewPostgresStore()
 	if err != nil {
 		log.Fatal(err)
 	}

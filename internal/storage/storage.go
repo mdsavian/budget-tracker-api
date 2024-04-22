@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"github.com/mdsavian/budget-tracker-api/types"
+	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
 type PostgresStore struct {

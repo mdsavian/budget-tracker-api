@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mdsavian/budget-tracker-api/types"
+	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
 func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request) {
