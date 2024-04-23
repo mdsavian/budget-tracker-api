@@ -43,11 +43,30 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
+	if err := s.CreateSessionTable(); err != nil {
+		return err
+	}
+
 	if err := s.CreateUserTable(); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// Session
+func (s *PostgresStore) CreateSessionTable() error {
+	query := `create table if not exists "session" (
+				id UUID NOT NULL, 
+				user_id UUID NOT NULL, 
+				expires_at timestamptz NOT NULL,
+				created_at timestamptz NOT NULL, 
+				updated_at timestamptz NOT NULL, 
+				PRIMARY KEY ("id"),
+				CONSTRAINT "session_users" FOREIGN KEY ("user_id") REFERENCES "user" ("id")
+				)`
+	_, err := s.db.Query(query)
+	return err
 }
 
 // User
