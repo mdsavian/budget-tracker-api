@@ -109,7 +109,7 @@ func (s *PostgresStore) DeleteUser(id uuid.UUID) error {
 }
 
 func (s *PostgresStore) GetUserByEmail(email string) (*types.User, error) {
-	query := "select * from user where email = $1"
+	query := `select * from "user" where email = $1`
 	rows, err := s.db.Query(query, email)
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type LoginRequest struct {
@@ -13,7 +14,7 @@ type LoginRequest struct {
 
 type Session struct {
 	ID        uuid.UUID
-	UserId    string
+	UserId    uuid.UUID
 	ExpiresAt time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -25,6 +26,10 @@ type User struct {
 	EncryptedPassword string    `json:"-"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (u *User) ValidPassword(password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(u.EncryptedPassword), []byte(password)) == nil
 }
 
 type AccountType string
@@ -45,16 +50,4 @@ type Account struct {
 	AccountType AccountType `json:"account_type"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
-}
-
-// TODO move this
-func NewAccount(name string, accountType AccountType) *Account {
-	return &Account{
-		ID:          uuid.Must(uuid.NewV7()),
-		Name:        name,
-		Balance:     0,
-		AccountType: accountType,
-		CreatedAt:   time.Now().UTC(),
-		UpdatedAt:   time.Now().UTC(),
-	}
 }

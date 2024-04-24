@@ -43,7 +43,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /account/{id}", s.handleGetAccountByID)
 	mux.HandleFunc("DELETE /account/{id}", s.handleDeleteAccount)
 
-	//mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("POST /login", s.handleLogin)
 
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, mux)
