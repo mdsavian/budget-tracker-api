@@ -3,6 +3,7 @@ package apiserver
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/mdsavian/budget-tracker-api/internal/types"
@@ -18,6 +19,8 @@ type Storage interface {
 	GetUserByID(uuid.UUID) (*types.User, error)
 	GetUserByEmail(string) (*types.User, error)
 	CreateSession(*types.Session) error
+	DeleteSession(uuid.UUID) error
+	UpdateSession(uuid.UUID, time.Time) error
 }
 
 type APIServer struct {
@@ -44,6 +47,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("DELETE /account/{id}", s.handleDeleteAccount)
 
 	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("POST /logout", s.handleLogout)
 
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, mux)

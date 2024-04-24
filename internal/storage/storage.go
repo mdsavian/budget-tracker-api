@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
@@ -76,6 +77,19 @@ func (s *PostgresStore) CreateSession(session *types.Session) error {
 
 	_, err := s.db.Query(query, session.ID, session.UserId, session.ExpiresAt, session.CreatedAt, session.UpdatedAt)
 	return err
+}
+
+func (s *PostgresStore) DeleteSession(sessionID uuid.UUID) error {
+	query := `DELETE from session where id = $1`
+	_, err := s.db.Query(query, sessionID)
+	return err
+}
+
+func (s *PostgresStore) UpdateSession(sessionID uuid.UUID, expiresAt time.Time) error {
+	query := `UPDATE session SET expires_at = $1 where id = $2`
+	_, err := s.db.Query(query, expiresAt, sessionID)
+	return err
+
 }
 
 // User
