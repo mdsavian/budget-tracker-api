@@ -69,6 +69,15 @@ func (s *PostgresStore) CreateSessionTable() error {
 	return err
 }
 
+func (s *PostgresStore) CreateSession(session *types.Session) error {
+	query := `insert into "session" 
+	(id, user_id, expires_at, created_at, updated_at)
+	values ($1, $2, $3, $4, $5)`
+
+	_, err := s.db.Query(query, session.ID, session.UserId, session.ExpiresAt, session.CreatedAt, session.UpdatedAt)
+	return err
+}
+
 // User
 func (s *PostgresStore) CreateUserTable() error {
 	query := `create table if not exists "user" (
@@ -89,11 +98,7 @@ func (s *PostgresStore) CreateUser(user *types.User) error {
 	values ($1, $2, $3, $4, $5, $6)`
 
 	_, err := s.db.Query(query, user.ID, user.Name, user.Email, user.EncryptedPassword, user.CreatedAt, user.UpdatedAt)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *PostgresStore) DeleteUser(id uuid.UUID) error {

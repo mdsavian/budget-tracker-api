@@ -17,6 +17,7 @@ type Storage interface {
 	DeleteUser(uuid.UUID) error
 	GetUserByID(uuid.UUID) (*types.User, error)
 	GetUserByEmail(string) (*types.User, error)
+	CreateSession(*types.Session) error
 }
 
 type APIServer struct {
