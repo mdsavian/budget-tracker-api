@@ -25,8 +25,13 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, account)
 }
 
+type CreateNewAccountInput struct {
+	Name        string            `json:"name"`
+	AccountType types.AccountType `json:"account_type"`
+}
+
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
-	createNewAccountInput := types.CreateNewAccountInput{}
+	createNewAccountInput := CreateNewAccountInput{}
 	if err := json.NewDecoder(r.Body).Decode(&createNewAccountInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -71,7 +76,7 @@ func (s *APIServer) handleGetAccounts(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, accounts)
 }
 
-func newAccount(input types.CreateNewAccountInput) *types.Account {
+func newAccount(input CreateNewAccountInput) *types.Account {
 	return &types.Account{
 		ID:          uuid.Must(uuid.NewV7()),
 		Name:        input.Name,

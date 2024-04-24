@@ -26,11 +26,6 @@ type User struct {
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
 }
-type CreateNewUserInput struct {
-	Name     string
-	Email    string
-	Password string
-}
 
 type AccountType string
 
@@ -41,11 +36,6 @@ const (
 
 func (at AccountType) String() string {
 	return string(at)
-}
-
-type CreateNewAccountInput struct {
-	Name        string      `json:"name"`
-	AccountType AccountType `json:"account_type"`
 }
 
 type Account struct {

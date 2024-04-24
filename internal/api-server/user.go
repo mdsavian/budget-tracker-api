@@ -12,13 +12,19 @@ import (
 
 const ErrMethodNotAllowed = "Method not allowed"
 
+type CreateNewUserInput struct {
+	Name     string
+	Email    string
+	Password string
+}
+
 func (s *APIServer) handleCreateUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		respondWithError(w, http.StatusBadRequest, ErrMethodNotAllowed)
 		return
 	}
 
-	createNewUserInput := types.CreateNewUserInput{}
+	createNewUserInput := CreateNewUserInput{}
 
 	if err := json.NewDecoder(r.Body).Decode(&createNewUserInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -59,7 +65,7 @@ func (s *APIServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, "User deleted successfully")
 }
 
-func newUser(input types.CreateNewUserInput) (*types.User, error) {
+func newUser(input CreateNewUserInput) (*types.User, error) {
 	encriptedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
