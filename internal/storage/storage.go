@@ -92,6 +92,25 @@ func (s *PostgresStore) UpdateSession(sessionID uuid.UUID, expiresAt time.Time) 
 
 }
 
+func (s *PostgresStore) GetSessionByID(id uuid.UUID) (*types.Session, error) {
+	query := "select * from session where id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+	session := &types.Session{}
+	for rows.Next() {
+		err := rows.Scan(
+			&session.ID,
+			&session.UserId,
+			&session.ExpiresAt,
+			&session.CreatedAt,
+			&session.UpdatedAt)
+		return session, err
+	}
+	return nil, fmt.Errorf("session %v not found", id)
+}
+
 // User
 func (s *PostgresStore) CreateUserTable() error {
 	query := `create table if not exists "user" (

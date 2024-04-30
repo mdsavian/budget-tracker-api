@@ -21,6 +21,7 @@ type Storage interface {
 	CreateSession(*types.Session) error
 	DeleteSession(uuid.UUID) error
 	UpdateSession(uuid.UUID, time.Time) error
+	GetSessionByID(uuid.UUID) (*types.Session, error)
 }
 
 type APIServer struct {
@@ -38,7 +39,7 @@ func NewServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Start() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /user", s.handleCreateUser)
+	mux.HandleFunc("POST /user", s.validateSession(s.handleCreateUser))
 	mux.HandleFunc("DELETE /user/{id}", s.handleDeleteUser)
 
 	mux.HandleFunc("POST /account", s.handleCreateAccount)
