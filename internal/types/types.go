@@ -1,6 +1,7 @@
 package types
 
 import (
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,12 @@ type Session struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+func (s Session) IsExpired() bool {
+	log.Println(s.ExpiresAt, s.ExpiresAt.Before(time.Now()))
+	return s.ExpiresAt.Before(time.Now())
+}
+
 type User struct {
 	ID                uuid.UUID `json:"id"`
 	Name              string    `json:"name"`

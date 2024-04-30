@@ -16,6 +16,43 @@ type CredentialsInput struct {
 
 const COOKIE_NAME = "session_token"
 
+type apiFunc func(http.ResponseWriter, *http.Request)
+
+func (s *APIServer) validateSession(f apiFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(COOKIE_NAME)
+		if err != nil {
+			if err == http.ErrNoCookie {
+				respondWithError(w, http.StatusUnauthorized, "cookie invalid")
+				return
+			}
+			respondWithError(w, http.StatusBadRequest, "cookie invalid")
+			return
+		}
+
+		sessionToken := cookie.Value
+		sessionID, err := uuid.Parse(sessionToken)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "error parsing session ID")
+			return
+		}
+
+		session, err := s.store.GetSessionByID(sessionID)
+		if err != nil {
+			respondWithError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+
+		if session.IsExpired() {
+			respondWithError(w, http.StatusUnauthorized, "session expired")
+			return
+		}
+		f(w, r)
+
+	})
+
+}
+
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	loginInput := CredentialsInput{}
 
