@@ -1,7 +1,6 @@
 package types
 
 import (
-	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,7 +21,6 @@ type Session struct {
 }
 
 func (s Session) IsExpired() bool {
-	log.Println(s.ExpiresAt, s.ExpiresAt.Before(time.Now()))
 	return s.ExpiresAt.Before(time.Now())
 }
 
