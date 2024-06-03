@@ -52,7 +52,84 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
+	if err := s.CreateCategoryTable(); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// Category
+func (s *PostgresStore) CreateCategoryTable() error {
+	query := `create table if not exists "category" (
+				id UUID NOT NULL, 
+				description varchar (60) NOT NULL, 
+				archived boolean NULL DEFAULT false, 
+				created_at timestamptz NOT NULL, 
+				updated_at timestamptz NOT NULL, 
+				PRIMARY KEY ("id")
+	)`
+	_, err := s.db.Query(query)
+	return err
+}
+
+func (s *PostgresStore) CreateCategory(category *types.Category) error {
+	query := `insert into "category" 
+	(id, description, created_at, updated_at)
+	values ($1, $2, $3, $4)`
+
+	_, err := s.db.Query(query, category.ID, category.Description, category.CreatedAt, category.UpdatedAt)
+	return err
+}
+
+func (s *PostgresStore) GetCategoryByDescription(description string) (*types.Category, error) {
+	query := "select * from category where description = $1"
+	rows, err := s.db.Query(query, description)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoCategory(rows)
+	}
+
+	return nil, fmt.Errorf("category %v not found", description)
+}
+
+func (s *PostgresStore) GetCategory() ([]*types.Category, error) {
+	rows, err := s.db.Query("select * from category")
+	if err != nil {
+		return nil, err
+	}
+
+	categories := []*types.Category{}
+
+	for rows.Next() {
+		category, err := scanIntoCategory(rows)
+		if err != nil {
+			return nil, err
+		}
+		categories = append(categories, category)
+	}
+	return categories, nil
+}
+
+func scanIntoCategory(rows *sql.Rows) (*types.Category, error) {
+	category := &types.Category{}
+	err := rows.Scan(
+		&category.ID,
+		&category.Description,
+		&category.Archived,
+		&category.CreatedAt,
+		&category.UpdatedAt)
+
+	return category, err
+}
+
+func (s *PostgresStore) ArchiveCategory(categoryID uuid.UUID) error {
+	query := `UPDATE session SET archived = $1 where id = $2`
+	_, err := s.db.Query(query, true, categoryID)
+	return err
 }
 
 // Session
@@ -89,7 +166,6 @@ func (s *PostgresStore) UpdateSession(sessionID uuid.UUID, expiresAt time.Time) 
 	query := `UPDATE session SET expires_at = $1 where id = $2`
 	_, err := s.db.Query(query, expiresAt, sessionID)
 	return err
-
 }
 
 func (s *PostgresStore) GetSessionByID(id uuid.UUID) (*types.Session, error) {
