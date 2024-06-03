@@ -58,3 +58,11 @@ type Account struct {
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
 }
+
+type Category struct {
+	ID          uuid.UUID `json:"id"`
+	Description string    `json:"description"`
+	Archived    bool      `json:"archived"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
