@@ -10,6 +10,12 @@ import (
 )
 
 type Storage interface {
+	// Category
+	CreateCategory(*types.Category) error
+	GetCategory() ([]*types.Category, error)
+	GetCategoryByDescription(string) (*types.Category, error)
+	ArchiveCategory(uuid.UUID) error
+
 	// Account
 	CreateAccount(*types.Account) error
 	DeleteAccount(uuid.UUID) error
@@ -43,6 +49,11 @@ func NewServer(listenAddr string, store Storage) *APIServer {
 
 func (s *APIServer) Start() {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /category", s.validateSession(s.handleCreateCategory))
+	mux.HandleFunc("GET /category", s.validateSession(s.handleGetCategory))
+	mux.HandleFunc("GET /category/{description}", s.validateSession(s.handleGetCategoryByDescription))
+	mux.HandleFunc("PUT /category/archive/{id}", s.validateSession(s.handleArchiveCategory))
 
 	mux.HandleFunc("POST /user", s.validateSession(s.handleCreateUser))
 	mux.HandleFunc("DELETE /user/{id}", s.validateSession(s.handleDeleteUser))
