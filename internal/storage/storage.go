@@ -64,9 +64,10 @@ func (s *PostgresStore) CreateCategoryTable() error {
 	query := `create table if not exists "category" (
 				id UUID NOT NULL, 
 				description varchar (60) NOT NULL, 
-				archived boolean NULL DEFAULT false, 
+				archived boolean NOT NULL DEFAULT false, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
+				CONSTRAINT uc_description UNIQUE(description),
 				PRIMARY KEY ("id")
 	)`
 	_, err := s.db.Query(query)
@@ -127,7 +128,7 @@ func scanIntoCategory(rows *sql.Rows) (*types.Category, error) {
 }
 
 func (s *PostgresStore) ArchiveCategory(categoryID uuid.UUID) error {
-	query := `UPDATE session SET archived = $1 where id = $2`
+	query := `UPDATE category SET archived = $1 where id = $2`
 	_, err := s.db.Query(query, true, categoryID)
 	return err
 }
