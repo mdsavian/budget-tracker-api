@@ -37,25 +37,24 @@ func (s *APIServer) handleCreateCreditCard(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *APIServer) handleGetCreditCard(w http.ResponseWriter, r *http.Request) {
-	categories, err := s.store.GetCreditCard()
+	nameInputFilter := r.URL.Query().Get("name")
+	if nameInputFilter != "" {
+		creditCard, err := s.store.GetCreditCardByName(nameInputFilter)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, creditCard)
+		return
+	}
+
+	cards, err := s.store.GetCreditCard()
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, categories)
-}
-
-func (s *APIServer) handleGetCreditCardByName(w http.ResponseWriter, r *http.Request) {
-	name := r.PathValue("name")
-
-	creditCard, err := s.store.GetCreditCardByName(name)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, creditCard)
+	respondWithJSON(w, http.StatusOK, cards)
 }
 
 func (s *APIServer) handleGetCreditCardById(w http.ResponseWriter, r *http.Request) {
