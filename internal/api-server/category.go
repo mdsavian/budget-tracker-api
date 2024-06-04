@@ -63,6 +63,11 @@ func (s *APIServer) handleArchiveCategory(w http.ResponseWriter, r *http.Request
 		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
 
+	if _, err := s.store.GetCategoryByID(id); err != nil {
+		respondWithError(w, http.StatusNotFound, err.Error())
+		return
+	}
+
 	err = s.store.ArchiveCategory(id)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())

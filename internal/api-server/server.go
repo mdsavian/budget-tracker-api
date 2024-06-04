@@ -21,6 +21,7 @@ type Storage interface {
 	CreateCategory(*types.Category) error
 	GetCategory() ([]*types.Category, error)
 	GetCategoryByDescription(string) (*types.Category, error)
+	GetCategoryByID(uuid.UUID) (*types.Category, error)
 	ArchiveCategory(uuid.UUID) error
 
 	// Account
