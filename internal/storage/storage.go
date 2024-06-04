@@ -56,7 +56,100 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
+	if err := s.CreateCreditCardTable(); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+//CreditCard
+
+func (s *PostgresStore) CreateCreditCardTable() error {
+	query := `create table if not exists "creditcard" (
+				id UUID NOT NULL, 
+				name varchar (60) NOT NULL, 
+				archived boolean NOT NULL DEFAULT false, 
+				created_at timestamptz NOT NULL, 
+				updated_at timestamptz NOT NULL, 
+				CONSTRAINT uc_name UNIQUE(name),
+				PRIMARY KEY ("id")
+	)`
+	_, err := s.db.Query(query)
+	return err
+}
+
+func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {
+	query := `insert into "creditcard" 
+	(id, name, created_at, updated_at)
+	values ($1, $2, $3, $4)`
+
+	_, err := s.db.Query(query, creditCard.ID, creditCard.Name, creditCard.CreatedAt, creditCard.UpdatedAt)
+	return err
+}
+
+func (s *PostgresStore) GetCreditCardByID(id uuid.UUID) (*types.CreditCard, error) {
+	query := "select * from creditcard where id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoCreditCard(rows)
+	}
+
+	return nil, fmt.Errorf("credit card %v not found", id)
+}
+func (s *PostgresStore) GetCreditCardByName(name string) (*types.CreditCard, error) {
+	query := "select * from creditcard where name = $1"
+	rows, err := s.db.Query(query, name)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoCreditCard(rows)
+	}
+
+	return nil, fmt.Errorf("credit card %v not found", name)
+}
+
+func (s *PostgresStore) GetCreditCard() ([]*types.CreditCard, error) {
+	rows, err := s.db.Query("select * from creditcard")
+	if err != nil {
+		return nil, err
+	}
+
+	cards := []*types.CreditCard{}
+
+	for rows.Next() {
+		card, err := scanIntoCreditCard(rows)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, card)
+	}
+	return cards, nil
+}
+
+func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
+	card := &types.CreditCard{}
+	err := rows.Scan(
+		&card.ID,
+		&card.Name,
+		&card.Archived,
+		&card.CreatedAt,
+		&card.UpdatedAt)
+
+	return card, err
+}
+
+func (s *PostgresStore) ArchiveCreditCard(creditCardID uuid.UUID) error {
+	query := `UPDATE creditcard SET archived = $1 where id = $2`
+	_, err := s.db.Query(query, true, creditCardID)
+
+	return err
 }
 
 // Category
