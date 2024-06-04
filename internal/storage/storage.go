@@ -190,6 +190,20 @@ func (s *PostgresStore) GetCategoryByDescription(description string) (*types.Cat
 	return nil, fmt.Errorf("category %v not found", description)
 }
 
+func (s *PostgresStore) GetCategoryByID(id uuid.UUID) (*types.Category, error) {
+	query := "select * from category where id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoCategory(rows)
+	}
+
+	return nil, fmt.Errorf("category %v not found", id)
+}
+
 func (s *PostgresStore) GetCategory() ([]*types.Category, error) {
 	rows, err := s.db.Query("select * from category")
 	if err != nil {
