@@ -36,6 +36,17 @@ func (s *APIServer) handleCreateCategory(w http.ResponseWriter, r *http.Request)
 }
 
 func (s *APIServer) handleGetCategory(w http.ResponseWriter, r *http.Request) {
+	descriptionInputFilter := r.URL.Query().Get("description")
+	if descriptionInputFilter != "" {
+		category, err := s.store.GetCategoryByDescription(descriptionInputFilter)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, category)
+		return
+	}
+
 	categories, err := s.store.GetCategory()
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -43,18 +54,6 @@ func (s *APIServer) handleGetCategory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusOK, categories)
-}
-
-func (s *APIServer) handleGetCategoryByDescription(w http.ResponseWriter, r *http.Request) {
-	description := r.PathValue("description")
-
-	category, err := s.store.GetCategoryByDescription(description)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, category)
 }
 
 func (s *APIServer) handleArchiveCategory(w http.ResponseWriter, r *http.Request) {

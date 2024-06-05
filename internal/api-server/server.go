@@ -65,7 +65,6 @@ func (s *APIServer) Start() {
 
 	mux.HandleFunc("POST /category", s.validateSession(s.handleCreateCategory))
 	mux.HandleFunc("GET /category", s.validateSession(s.handleGetCategory))
-	mux.HandleFunc("GET /category/{description}", s.validateSession(s.handleGetCategoryByDescription))
 	mux.HandleFunc("PUT /category/archive/{id}", s.validateSession(s.handleArchiveCategory))
 
 	mux.HandleFunc("POST /user", s.validateSession(s.handleCreateUser))
