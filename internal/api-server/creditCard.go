@@ -11,7 +11,8 @@ import (
 )
 
 type CreateNewCreditCardInput struct {
-	Name string `json:"name"`
+	Name       string `json:"name"`
+	ClosingDay int8   `json:"closingDay"`
 }
 
 func (s *APIServer) handleCreateCreditCard(w http.ResponseWriter, r *http.Request) {
@@ -23,10 +24,11 @@ func (s *APIServer) handleCreateCreditCard(w http.ResponseWriter, r *http.Reques
 	}
 
 	creditCard := &types.CreditCard{
-		ID:        uuid.Must(uuid.NewV7()),
-		Name:      cardInput.Name,
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		ID:         uuid.Must(uuid.NewV7()),
+		Name:       cardInput.Name,
+		ClosingDay: cardInput.ClosingDay,
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}
 
 	if err := s.store.CreateCreditCard(creditCard); err != nil {

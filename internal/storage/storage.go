@@ -70,6 +70,7 @@ func (s *PostgresStore) CreateCreditCardTable() error {
 				id UUID NOT NULL, 
 				name varchar (60) NOT NULL, 
 				archived boolean NOT NULL DEFAULT false, 
+				closing_day int NOT NULL, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
 				CONSTRAINT uc_name UNIQUE(name),
@@ -81,10 +82,10 @@ func (s *PostgresStore) CreateCreditCardTable() error {
 
 func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {
 	query := `insert into "creditcard" 
-	(id, name, created_at, updated_at)
-	values ($1, $2, $3, $4)`
+	(id, name, closing_day, created_at, updated_at)
+	values ($1, $2, $3, $4, $5)`
 
-	_, err := s.db.Query(query, creditCard.ID, creditCard.Name, creditCard.CreatedAt, creditCard.UpdatedAt)
+	_, err := s.db.Query(query, creditCard.ID, creditCard.Name, creditCard.ClosingDay, creditCard.CreatedAt, creditCard.UpdatedAt)
 	return err
 }
 
@@ -138,6 +139,7 @@ func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
 	err := rows.Scan(
 		&card.ID,
 		&card.Name,
+		&card.ClosingDay,
 		&card.Archived,
 		&card.CreatedAt,
 		&card.UpdatedAt)
