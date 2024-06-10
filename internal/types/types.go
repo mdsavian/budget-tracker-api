@@ -88,7 +88,7 @@ func (at TransactionType) String() string {
 type Transaction struct {
 	ID              uuid.UUID       `json:"id"`
 	AccountID       uuid.UUID       `json:"account_id"`
-	CreditCardID    uuid.UUID       `json:"credit_card_id"`
+	CreditCardID    *uuid.UUID      `json:"credit_card_id"`
 	CategoryID      uuid.UUID       `json:"category_id"`
 	TransactionType TransactionType `json:"transaction_type"`
 	Date            time.Time       `json:"date"`

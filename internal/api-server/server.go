@@ -10,6 +10,10 @@ import (
 )
 
 type Storage interface {
+	// Transaction
+	CreateTransaction(*types.Transaction) error
+	GetTransaction() ([]*types.Transaction, error)
+
 	// CreditCard
 	CreateCreditCard(*types.CreditCard) error
 	GetCreditCard() ([]*types.CreditCard, error)
@@ -57,6 +61,9 @@ func NewServer(listenAddr string, store Storage) *APIServer {
 
 func (s *APIServer) Start() {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("POST /transaction", s.validateSession(s.handleCreateTransaction))
+	mux.HandleFunc("GET /transaction", s.validateSession(s.handleGetTransaction))
 
 	mux.HandleFunc("POST /creditcard", s.validateSession(s.handleCreateCreditCard))
 	mux.HandleFunc("GET /creditcard", s.validateSession(s.handleGetCreditCard))
