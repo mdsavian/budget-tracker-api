@@ -77,7 +77,7 @@ func (s *PostgresStore) CreateTransactionTable() error {
 		transaction_type varchar (100) NOT NULL,
 		date timestamptz NOT NULL, 
 		description varchar(500) NOT NULL,
-		amount bigint NOT NULL,
+		amount numeric NOT NULL,
 		paid boolean NOT NULL DEFAULT false,
 		cost_of_living boolean NOT NULL DEFAULT false,		
 		created_at timestamptz NOT NULL, 
@@ -462,7 +462,7 @@ func (s *PostgresStore) CreateAccountTable() error {
 				id UUID primary key NOT NULL, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
-				balance bigint NOT NULL, 
+				balance numeric NOT NULL, 
 				name varchar (200) NOT NULL, 
 				account_type varchar (50) NOT null
 				)`
