@@ -73,3 +73,29 @@ type CreditCard struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+type TransactionType string
+
+const (
+	TransactionTypeCredit TransactionType = "Credit"
+	TransactionTypeDebit  TransactionType = "Debit"
+)
+
+func (at TransactionType) String() string {
+	return string(at)
+}
+
+type Transaction struct {
+	ID              uuid.UUID       `json:"id"`
+	AccountID       uuid.UUID       `json:"account_id"`
+	CreditCardID    uuid.UUID       `json:"credit_card_id"`
+	CategoryID      uuid.UUID       `json:"category_id"`
+	TransactionType TransactionType `json:"transaction_type"`
+	Date            time.Time       `json:"date"`
+	Description     string          `json:"description"`
+	Amount          float64         `json:"amount"`
+	Paid            bool            `json:"paid"`
+	CostOfLiving    bool            `json:"cost_of_living"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+}

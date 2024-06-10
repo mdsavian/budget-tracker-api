@@ -60,11 +60,99 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
+	if err := s.CreateTransactionTable(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-//CreditCard
+// Transaction
+func (s *PostgresStore) CreateTransactionTable() error {
+	query := `create table if not exists "transaction" (
+		id UUID NOT NULL, 
+		account_id UUID NOT NULL,
+		creditcard_id UUID NULL,
+		category_id UUID NOT NULL,
+		transaction_type varchar (100) NOT NULL,
+		date timestamptz NOT NULL, 
+		description varchar(500) NOT NULL,
+		amount bigint NOT NULL,
+		paid boolean NOT NULL DEFAULT false,
+		cost_of_living boolean NOT NULL DEFAULT false,		
+		created_at timestamptz NOT NULL, 
+		updated_at timestamptz NOT NULL, 
 
+		PRIMARY KEY ("id"),
+		CONSTRAINT "transaction_account" FOREIGN KEY ("account_id") REFERENCES "account" ("id"),
+		CONSTRAINT "transaction_card" FOREIGN KEY ("creditcard_id") REFERENCES "creditcard" ("id"),
+		CONSTRAINT "transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id")
+	)`
+	_, err := s.db.Query(query)
+	return err
+}
+
+func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error {
+	query := `insert into "transaction" 
+	(id, account_id, creditcard_id, category_id, transaction_type, date, description, 
+		amount, paid, cost_of_living, created_at, updated_at)
+	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+
+	_, err := s.db.Query(query,
+		transaction.ID,
+		transaction.AccountID,
+		transaction.CreditCardID,
+		transaction.CategoryID,
+		transaction.TransactionType,
+		transaction.Date,
+		transaction.Description,
+		transaction.Amount,
+		transaction.Paid,
+		transaction.CostOfLiving,
+		transaction.CreatedAt,
+		transaction.UpdatedAt)
+
+	return err
+}
+
+func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
+	rows, err := s.db.Query("select * from transaction")
+	if err != nil {
+		return nil, err
+	}
+
+	transactions := []*types.Transaction{}
+
+	for rows.Next() {
+		transaction, err := scanIntoTransaction(rows)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
+	return transactions, nil
+}
+
+func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
+	transaction := &types.Transaction{}
+	err := rows.Scan(
+		&transaction.ID,
+		&transaction.AccountID,
+		&transaction.CreditCardID,
+		&transaction.CategoryID,
+		&transaction.TransactionType,
+		&transaction.Date,
+		&transaction.Description,
+		&transaction.Amount,
+		&transaction.Paid,
+		&transaction.CostOfLiving,
+		&transaction.CreatedAt,
+		&transaction.UpdatedAt)
+
+	return transaction, err
+}
+
+// CreditCard
 func (s *PostgresStore) CreateCreditCardTable() error {
 	query := `create table if not exists "creditcard" (
 				id UUID NOT NULL, 
@@ -74,7 +162,7 @@ func (s *PostgresStore) CreateCreditCardTable() error {
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
 				CONSTRAINT uc_name UNIQUE(name),
-				PRIMARY KEY ("id")
+				PRIMfARY KEY ("id")
 	)`
 	_, err := s.db.Query(query)
 	return err
