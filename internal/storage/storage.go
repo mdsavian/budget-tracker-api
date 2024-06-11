@@ -40,15 +40,15 @@ func (s *PostgresStore) Init() error {
 }
 
 func (s *PostgresStore) createTables() error {
-	if err := s.CreateAccountTable(); err != nil {
+	if err := s.createAccountTable(); err != nil {
 		return err
 	}
 
-	if err := s.CreateSessionTable(); err != nil {
+	if err := s.createSessionTable(); err != nil {
 		return err
 	}
 
-	if err := s.CreateUserTable(); err != nil {
+	if err := s.createUserTable(); err != nil {
 		return err
 	}
 
@@ -56,11 +56,11 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
-	if err := s.CreateCreditCardTable(); err != nil {
+	if err := s.createCreditCardTable(); err != nil {
 		return err
 	}
 
-	if err := s.CreateTransactionTable(); err != nil {
+	if err := s.createTransactionTable(); err != nil {
 		return err
 	}
 
@@ -68,7 +68,7 @@ func (s *PostgresStore) createTables() error {
 }
 
 // Transaction
-func (s *PostgresStore) CreateTransactionTable() error {
+func (s *PostgresStore) createTransactionTable() error {
 	query := `create table if not exists "transaction" (
 		id UUID NOT NULL, 
 		account_id UUID NOT NULL,
@@ -153,7 +153,7 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 }
 
 // CreditCard
-func (s *PostgresStore) CreateCreditCardTable() error {
+func (s *PostgresStore) createCreditCardTable() error {
 	query := `create table if not exists "creditcard" (
 				id UUID NOT NULL, 
 				name varchar (60) NOT NULL, 
@@ -331,7 +331,7 @@ func (s *PostgresStore) ArchiveCategory(categoryID uuid.UUID) error {
 }
 
 // Session
-func (s *PostgresStore) CreateSessionTable() error {
+func (s *PostgresStore) createSessionTable() error {
 	query := `create table if not exists "session" (
 				id UUID NOT NULL, 
 				user_id UUID NOT NULL, 
@@ -386,7 +386,7 @@ func (s *PostgresStore) GetSessionByID(id uuid.UUID) (*types.Session, error) {
 }
 
 // User
-func (s *PostgresStore) CreateUserTable() error {
+func (s *PostgresStore) createUserTable() error {
 	query := `create table if not exists "user" (
 				id UUID primary key NOT NULL, 
 				created_at timestamptz NOT NULL, 
@@ -457,7 +457,7 @@ func scanIntoUser(rows *sql.Rows) (*types.User, error) {
 }
 
 // Account
-func (s *PostgresStore) CreateAccountTable() error {
+func (s *PostgresStore) createAccountTable() error {
 	query := `create table if not exists account (
 				id UUID primary key NOT NULL, 
 				created_at timestamptz NOT NULL, 
