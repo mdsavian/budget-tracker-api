@@ -38,7 +38,7 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 	}
 
 	account := newAccount(createNewAccountInput)
-	if _, err := s.store.CreateAccount(account); err != nil {
+	if err := s.store.CreateAccount(account); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
