@@ -44,11 +44,11 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
-	if err := s.createSessionTable(); err != nil {
+	if err := s.createUserTable(); err != nil {
 		return err
 	}
 
-	if err := s.createUserTable(); err != nil {
+	if err := s.createSessionTable(); err != nil {
 		return err
 	}
 
@@ -162,7 +162,7 @@ func (s *PostgresStore) createCreditCardTable() error {
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
 				CONSTRAINT uc_name UNIQUE(name),
-				PRIMfARY KEY ("id")
+				PRIMARY KEY ("id")
 	)`
 	_, err := s.db.Query(query)
 	return err

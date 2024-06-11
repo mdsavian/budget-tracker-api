@@ -74,7 +74,6 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /category", s.validateSession(s.handleGetCategory))
 	mux.HandleFunc("PUT /category/archive/{id}", s.validateSession(s.handleArchiveCategory))
 
-	mux.HandleFunc("POST /user", s.validateSession(s.handleCreateUser))
 	mux.HandleFunc("DELETE /user/{id}", s.validateSession(s.handleDeleteUser))
 
 	mux.HandleFunc("POST /account", s.validateSession(s.handleCreateAccount))
@@ -82,6 +81,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /account/{id}", s.validateSession(s.handleGetAccountByID))
 	mux.HandleFunc("DELETE /account/{id}", s.validateSession(s.handleDeleteAccount))
 
+	mux.HandleFunc("POST /user", s.handleCreateUser)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
