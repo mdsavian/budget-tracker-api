@@ -505,6 +505,19 @@ func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*types.Account, error) {
 
 }
 
+func (s *PostgresStore) GetUniqueAccount(name string, accountType types.AccountType) (*types.Account, error) {
+	rows, err := s.db.Query(`select * from account where name= $1 and account_type = $2`, name, accountType.String())
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return scanIntoAccount(rows)
+	}
+
+	return nil, fmt.Errorf("account with name %v and account type %v not found", name, accountType.String())
+}
+
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
 	rows, err := s.db.Query("select * from account")
 	if err != nil {
