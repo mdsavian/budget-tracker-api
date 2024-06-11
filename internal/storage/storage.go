@@ -3,7 +3,6 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -99,7 +98,7 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		amount, paid, cost_of_living, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, err := s.db.Query(query,
+	conn, err := s.db.Query(query,
 		transaction.ID,
 		transaction.AccountID,
 		transaction.CreditCardID,
@@ -112,8 +111,13 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.CostOfLiving,
 		transaction.CreatedAt,
 		transaction.UpdatedAt)
+	if err != nil {
+		return err
+	}
 
-	return err
+	defer conn.Close()
+
+	return nil
 }
 
 func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
@@ -556,6 +560,5 @@ func scanIntoAccount(rows *sql.Rows) (*types.Account, error) {
 		&account.Balance,
 		&account.Name,
 		&account.AccountType)
-	log.Println("errorrrr", err)
 	return account, err
 }

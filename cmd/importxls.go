@@ -74,8 +74,6 @@ func ImportData(path string, store *storage.PostgresStore) {
 			Paid:            cells[7].Value == "Sim",
 		}
 
-		log.Println("adding row", *transaction)
-
 		transactions = append(transactions, transaction)
 	}
 
@@ -84,8 +82,8 @@ func ImportData(path string, store *storage.PostgresStore) {
 }
 
 func persistData(transactions []*Transaction, store *storage.PostgresStore) {
-	var accounts []*types.Account
-	var categories []*types.Category
+	accounts, _ := store.GetAccounts()
+	categories, _ := store.GetCategory()
 
 	creditCard := getOrCreateCreditCard("Itaú", store)
 
@@ -116,19 +114,36 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 			}
 		}
 		if category == nil {
-			category = getOrCreateCategory(strings.ToUpper(transaction.Category), store)
+			category = getOrCreateCategory(strings.ToLower(transaction.Category), store)
 			categories = append(categories, category)
 		}
 
-		log.Println(accounts, *creditCard, *category)
-	}
+		newTransaction := &types.Transaction{
+			ID:              uuid.Must(uuid.NewV7()),
+			AccountID:       account.ID,
+			CategoryID:      category.ID,
+			TransactionType: types.TransactionType(transaction.TransactionType),
+			Date:            transaction.Date,
+			Description:     transaction.Description,
+			Amount:          transaction.Amount,
+			Paid:            transaction.Paid,
+			CostOfLiving:    false,
+			CreatedAt:       time.Now().UTC(),
+			UpdatedAt:       time.Now().UTC(),
+		}
 
+		if transaction.CreditCard {
+			newTransaction.CreditCardID = &creditCard.ID
+		}
+
+		store.CreateTransaction(newTransaction)
+	}
 }
 
 func getOrCreateCategory(description string, store *storage.PostgresStore) *types.Category {
 	category, err := store.GetCategoryByDescription(description)
 	if err != nil && err != sql.ErrNoRows {
-		log.Fatal("error searching for category ", description)
+		log.Fatal("error searching for category ", description, err)
 	}
 
 	if category != nil {
