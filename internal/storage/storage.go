@@ -462,7 +462,7 @@ func (s *PostgresStore) createAccountTable() error {
 				id UUID primary key NOT NULL, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
-				balance numeric NOT NULL, 
+				balance numeric NOT NULL DEFAULT 0, 
 				name varchar (200) NOT NULL, 
 				account_type varchar (50) NOT NULL
 				CONSTRAINT "uq_name_type" UNIQUE(name, account_type)
