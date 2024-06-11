@@ -464,7 +464,8 @@ func (s *PostgresStore) CreateAccountTable() error {
 				updated_at timestamptz NOT NULL, 
 				balance numeric NOT NULL, 
 				name varchar (200) NOT NULL, 
-				account_type varchar (50) NOT null
+				account_type varchar (50) NOT NULL
+				CONSTRAINT "uq_name_type" UNIQUE(name, account_type)
 				)`
 	_, err := s.db.Query(query)
 	return err
