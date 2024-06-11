@@ -464,24 +464,28 @@ func (s *PostgresStore) createAccountTable() error {
 				updated_at timestamptz NOT NULL, 
 				balance numeric NOT NULL DEFAULT 0, 
 				name varchar (200) NOT NULL, 
-				account_type varchar (50) NOT NULL
+				account_type varchar (50) NOT NULL,
 				CONSTRAINT "uq_name_type" UNIQUE(name, account_type)
 				)`
 	_, err := s.db.Query(query)
 	return err
 }
 
-func (s *PostgresStore) CreateAccount(acc *types.Account) error {
+func (s *PostgresStore) CreateAccount(acc *types.Account) (*types.Account, error) {
 	query := `insert into account 
 	(id, name, account_type, balance, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
-	_, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
+	rows, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	for rows.Next() {
+		return scanIntoAccount(rows)
+	}
+
+	return nil, nil
 }
 
 func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {

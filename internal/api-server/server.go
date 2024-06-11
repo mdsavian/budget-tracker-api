@@ -29,7 +29,7 @@ type Storage interface {
 	ArchiveCategory(uuid.UUID) error
 
 	// Account
-	CreateAccount(*types.Account) error
+	CreateAccount(*types.Account) (*types.Account, error)
 	DeleteAccount(uuid.UUID) error
 	GetAccountByID(uuid.UUID) (*types.Account, error)
 	GetAccounts() ([]*types.Account, error)
