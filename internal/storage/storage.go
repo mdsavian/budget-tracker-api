@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -471,21 +472,17 @@ func (s *PostgresStore) createAccountTable() error {
 	return err
 }
 
-func (s *PostgresStore) CreateAccount(acc *types.Account) (*types.Account, error) {
+func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 	query := `insert into account 
 	(id, name, account_type, balance, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
-	rows, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
+	_, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	for rows.Next() {
-		return scanIntoAccount(rows)
-	}
-
-	return nil, nil
+	return nil
 }
 
 func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
@@ -510,16 +507,22 @@ func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*types.Account, error) {
 }
 
 func (s *PostgresStore) GetUniqueAccount(name string, accountType types.AccountType) (*types.Account, error) {
-	rows, err := s.db.Query(`select * from account where name= $1 and account_type = $2`, name, accountType.String())
+	new := s.db.QueryRow(`select * from account where name= $1 and account_type = $2`, name, accountType.String())
+
+	account := &types.Account{}
+	err := new.Scan(
+		&account.ID,
+		&account.CreatedAt,
+		&account.UpdatedAt,
+		&account.Balance,
+		&account.Name,
+		&account.AccountType)
+
 	if err != nil {
 		return nil, err
 	}
 
-	for rows.Next() {
-		return scanIntoAccount(rows)
-	}
-
-	return nil, fmt.Errorf("account with name %v and account type %v not found", name, accountType.String())
+	return account, nil
 }
 
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
@@ -549,5 +552,6 @@ func scanIntoAccount(rows *sql.Rows) (*types.Account, error) {
 		&account.Balance,
 		&account.Name,
 		&account.AccountType)
+	log.Println("errorrrr", err)
 	return account, err
 }
