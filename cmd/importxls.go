@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	"log"
 	"strconv"
 	"time"
@@ -77,7 +78,6 @@ func ImportData(path string, store *storage.PostgresStore) {
 		transactions = append(transactions, transaction)
 	}
 
-	log.Println(transactions, len(transactions))
 	persistData(transactions, store)
 
 }
@@ -86,46 +86,63 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 	var accounts []*types.Account
 
 	for _, transaction := range transactions {
-		var accountName string
-		accountType := types.AccountType(transaction.Account)
-
-		if accountType == types.AccountTypePersonal {
-			accountName = "Bradesco"
-		} else {
-			accountName = "Empresa"
-		}
-
 		var account *types.Account
+
+		accountName, accountType := mapTransactionAccount(transaction.Account)
+		// search first on array avoiding calling the db for each transaction
 		if len(accounts) > 0 {
 			for _, acc := range accounts {
 				if acc.Name == accountName && acc.AccountType == accountType {
 					account = acc
+					log.Println("achei no array", *acc)
 					break
 				}
 			}
 		}
 
 		if account == nil {
-			account, err := store.GetUniqueAccount(accountName, accountType)
-			if err != nil {
-				log.Fatal("error getting unique account", accountName, accountType)
-			}
-
-			if account == nil {
-				account, err = store.CreateAccount(&types.Account{
-					ID:          uuid.Must(uuid.NewV7()),
-					AccountType: accountType,
-					Name:        accountName,
-					CreatedAt:   time.Now().UTC(),
-					UpdatedAt:   time.Now().UTC(),
-				})
-				if err != nil {
-					log.Fatal("error creating account")
-				}
-			}
-
+			account = getOrCreateAccountOnDB(accountName, accountType, store)
 			accounts = append(accounts, account)
 		}
 	}
+}
+
+func mapTransactionAccount(transactionAccount string) (string, types.AccountType) {
+	var accountName string
+	accountType := types.AccountType(transactionAccount)
+
+	if accountType == types.AccountTypePersonal {
+		accountName = "Bradesco"
+	} else {
+		accountName = "Empresa"
+	}
+
+	return accountName, accountType
+}
+
+func getOrCreateAccountOnDB(accountName string, accountType types.AccountType, store *storage.PostgresStore) *types.Account {
+	account, err := store.GetUniqueAccount(accountName, accountType)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal("error getting unique account", accountName, accountType)
+	}
+
+	if account != nil {
+		return account
+	}
+
+	newAccount := &types.Account{
+		ID:          uuid.Must(uuid.NewV7()),
+		AccountType: accountType,
+		Name:        accountName,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}
+
+	err = store.CreateAccount(newAccount)
+	if err != nil {
+		log.Fatal("error creating account")
+	}
+
+	return newAccount
 
 }
