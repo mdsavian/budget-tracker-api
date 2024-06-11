@@ -269,16 +269,20 @@ func (s *PostgresStore) CreateCategory(category *types.Category) error {
 
 func (s *PostgresStore) GetCategoryByDescription(description string) (*types.Category, error) {
 	query := "select * from category where description = $1"
-	rows, err := s.db.Query(query, description)
+	row := s.db.QueryRow(query, description)
+
+	category := &types.Category{}
+	err := row.Scan(
+		&category.ID,
+		&category.Description,
+		&category.Archived,
+		&category.CreatedAt,
+		&category.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	for rows.Next() {
-		return scanIntoCategory(rows)
-	}
-
-	return nil, fmt.Errorf("category %v not found", description)
+	return category, nil
 }
 
 func (s *PostgresStore) GetCategoryByID(id uuid.UUID) (*types.Category, error) {
