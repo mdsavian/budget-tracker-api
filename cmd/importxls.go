@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/mdsavian/budget-tracker-api/internal/storage"
+	"github.com/mdsavian/budget-tracker-api/internal/types"
 	"github.com/thedatashed/xlsxreader"
 )
 
@@ -19,9 +22,9 @@ type Transaction struct {
 	Paid            bool      `json:"paid"`
 }
 
-func ImportData(path string) {
+func ImportData(path string, store *storage.PostgresStore) {
 
-	// Create an instance of the reader by opening a target file
+	// Create an instance of the reader by opening a target fileP
 	xl, _ := xlsxreader.OpenFile(path)
 
 	// Ensure the file reader is closed once utilised
@@ -69,24 +72,60 @@ func ImportData(path string) {
 			Paid:            cells[7].Value == "Sim",
 		}
 
-		log.Println("adding row", &transaction)
+		log.Println("adding row", *transaction)
 
 		transactions = append(transactions, transaction)
 	}
 
 	log.Println(transactions, len(transactions))
+	persistData(transactions, store)
 
 }
 
-/*
+func persistData(transactions []*Transaction, store *storage.PostgresStore) {
+	var accounts []*types.Account
 
-0 - A - Cartão
-1 - B -	Tipo
-2 - C - Conta
-3 - D - Data
-4 - E - Descrição
-5 - F - Categoria
-6 - G -  Valor
-7 - H - Realizada
+	for _, transaction := range transactions {
+		var accountName string
+		accountType := types.AccountType(transaction.Account)
 
-*/
+		if accountType == types.AccountTypePersonal {
+			accountName = "Bradesco"
+		} else {
+			accountName = "Empresa"
+		}
+
+		var account *types.Account
+		if len(accounts) > 0 {
+			for _, acc := range accounts {
+				if acc.Name == accountName && acc.AccountType == accountType {
+					account = acc
+					break
+				}
+			}
+		}
+
+		if account == nil {
+			account, err := store.GetUniqueAccount(accountName, accountType)
+			if err != nil {
+				log.Fatal("error getting unique account", accountName, accountType)
+			}
+
+			if account == nil {
+				account, err = store.CreateAccount(&types.Account{
+					ID:          uuid.Must(uuid.NewV7()),
+					AccountType: accountType,
+					Name:        accountName,
+					CreatedAt:   time.Now().UTC(),
+					UpdatedAt:   time.Now().UTC(),
+				})
+				if err != nil {
+					log.Fatal("error creating account")
+				}
+			}
+
+			accounts = append(accounts, account)
+		}
+	}
+
+}
