@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -84,27 +85,86 @@ func ImportData(path string, store *storage.PostgresStore) {
 
 func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 	var accounts []*types.Account
+	var categories []*types.Category
+
+	creditCard := getOrCreateCreditCard("Itaú", store)
 
 	for _, transaction := range transactions {
 		var account *types.Account
-
 		accountName, accountType := mapTransactionAccount(transaction.Account)
 		// search first on array avoiding calling the db for each transaction
 		if len(accounts) > 0 {
 			for _, acc := range accounts {
 				if acc.Name == accountName && acc.AccountType == accountType {
 					account = acc
-					log.Println("achei no array", *acc)
 					break
 				}
 			}
 		}
-
 		if account == nil {
 			account = getOrCreateAccountOnDB(accountName, accountType, store)
 			accounts = append(accounts, account)
 		}
+
+		var category *types.Category
+		if len(categories) > 0 {
+			for _, ctg := range categories {
+				if ctg.Description == transaction.Category {
+					category = ctg
+					break
+				}
+			}
+		}
+		if category == nil {
+			category = getOrCreateCategory(strings.ToUpper(transaction.Category), store)
+			categories = append(categories, category)
+		}
+
+		log.Println(accounts, *creditCard, *category)
 	}
+
+}
+
+func getOrCreateCategory(description string, store *storage.PostgresStore) *types.Category {
+	category, err := store.GetCategoryByDescription(description)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal("error searching for category ", description)
+	}
+
+	if category != nil {
+		return category
+	}
+
+	newCategory := &types.Category{
+		ID:          uuid.Must(uuid.NewV7()),
+		Description: description,
+		CreatedAt:   time.Now().UTC(),
+		UpdatedAt:   time.Now().UTC(),
+	}
+	err = store.CreateCategory(newCategory)
+	if err != nil {
+		log.Fatal("error creating category ", description)
+	}
+
+	return newCategory
+}
+
+func getOrCreateCreditCard(name string, store *storage.PostgresStore) *types.CreditCard {
+	creditCard, _ := store.GetCreditCardByName(name)
+	if creditCard == nil {
+		creditCard = &types.CreditCard{
+			ID:         uuid.Must(uuid.NewV7()),
+			Name:       name,
+			ClosingDay: 10,
+			CreatedAt:  time.Now().UTC(),
+			UpdatedAt:  time.Now().UTC(),
+		}
+		err := store.CreateCreditCard(creditCard)
+		if err != nil {
+			log.Fatal("error creating credit card ")
+		}
+	}
+	return creditCard
 }
 
 func mapTransactionAccount(transactionAccount string) (string, types.AccountType) {
@@ -137,7 +197,6 @@ func getOrCreateAccountOnDB(accountName string, accountType types.AccountType, s
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
 	}
-
 	err = store.CreateAccount(newAccount)
 	if err != nil {
 		log.Fatal("error creating account")
