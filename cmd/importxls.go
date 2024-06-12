@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +29,26 @@ type Transaction struct {
 
 func ImportData(path string, store *storage.PostgresStore) {
 
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() && filepath.Ext(path) == ".xlsx" {
+			fmt.Println("Importing file name:", info.Name())
+
+			readXlsx(path, store)
+		}
+		return nil
+	})
+
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
+
+}
+
+func readXlsx(path string, store *storage.PostgresStore) {
 	// Create an instance of the reader by opening a target fileP
 	xl, _ := xlsxreader.OpenFile(path)
 
@@ -39,10 +62,11 @@ func ImportData(path string, store *storage.PostgresStore) {
 		if row.Index == 1 {
 			continue
 		}
+		log.Println("reading row = ", row.Index)
 
 		cells := row.Cells
 
-		if cells[0].Column != "A" {
+		if cells[0].Column != "A" || len(cells) < 8 {
 			log.Println("ignoring row = ", row.Index)
 			continue
 		}
@@ -78,7 +102,6 @@ func ImportData(path string, store *storage.PostgresStore) {
 	}
 
 	persistData(transactions, store)
-
 }
 
 func persistData(transactions []*Transaction, store *storage.PostgresStore) {
