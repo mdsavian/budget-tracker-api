@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mdsavian/budget-tracker-api/internal/types"
+	"github.com/rs/cors"
 )
 
 type Storage interface {
@@ -81,10 +82,12 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /account/{id}", s.validateSession(s.handleGetAccountByID))
 	mux.HandleFunc("DELETE /account/{id}", s.validateSession(s.handleDeleteAccount))
 
-	mux.HandleFunc("POST /user", s.handleCreateUser)
+	mux.HandleFunc("POST /user", s.validateSession(s.handleCreateUser))
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
+	handler := cors.Default().Handler(mux)
+
 	log.Println("Server running on port: ", s.listenAddr)
-	http.ListenAndServe(s.listenAddr, mux)
+	http.ListenAndServe(s.listenAddr, handler)
 }
