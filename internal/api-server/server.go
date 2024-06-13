@@ -86,7 +86,11 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
-	handler := cors.Default().Handler(mux)
+	handler := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3001"},
+		AllowCredentials: true,
+		AllowedHeaders:   []string{"*"},
+	}).Handler(mux)
 
 	log.Println("Server running on port: ", s.listenAddr)
 	http.ListenAndServe(s.listenAddr, handler)
