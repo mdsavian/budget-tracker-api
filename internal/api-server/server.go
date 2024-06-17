@@ -87,7 +87,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("POST /logout", s.handleLogout)
 
 	handler := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3001"},
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"*"},
 	}).Handler(mux)
