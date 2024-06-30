@@ -77,8 +77,8 @@ type CreditCard struct {
 type TransactionType string
 
 const (
-	TransactionTypeCredit TransactionType = "Credit"
-	TransactionTypeDebit  TransactionType = "Debit"
+	TransactionTypeCredit TransactionType = "Receita"
+	TransactionTypeDebit  TransactionType = "Despesa"
 )
 
 func (at TransactionType) String() string {
@@ -87,15 +87,29 @@ func (at TransactionType) String() string {
 
 type Transaction struct {
 	ID              uuid.UUID       `json:"id"`
-	AccountID       uuid.UUID       `json:"account_id"`
-	CreditCardID    *uuid.UUID      `json:"credit_card_id"`
-	CategoryID      uuid.UUID       `json:"category_id"`
-	TransactionType TransactionType `json:"transaction_type"`
+	AccountID       uuid.UUID       `json:"accountId"`
+	CreditCardID    *uuid.UUID      `json:"creditCardId"`
+	CategoryID      uuid.UUID       `json:"categoryId"`
+	TransactionType TransactionType `json:"transactionType"`
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
 	Amount          float64         `json:"amount"`
 	Paid            bool            `json:"paid"`
-	CostOfLiving    bool            `json:"cost_of_living"`
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	CostOfLiving    bool            `json:"costOfLiving"`
+	CreatedAt       time.Time       `json:"createdAt"`
+	UpdatedAt       time.Time       `json:"updatedAt"`
+}
+
+type TransactionView struct {
+	ID              uuid.UUID       `json:"id"`
+	Account         string          `json:"account"`
+	CreditCardID    *uuid.UUID      `json:"creditCardId"`
+	CreditCard      *string         `json:"creditCard"`
+	Category        string          `json:"category"`
+	TransactionType TransactionType `json:"transactionType"`
+	Date            time.Time       `json:"date"`
+	Description     string          `json:"description"`
+	Amount          float64         `json:"amount"`
+	Paid            bool            `json:"paid"`
+	CostOfLiving    bool            `json:"costOfLiving"`
 }

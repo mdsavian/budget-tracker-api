@@ -126,6 +126,8 @@ func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
 		return nil, err
 	}
 
+	defer rows.Close()
+
 	transactions := []*types.Transaction{}
 
 	for rows.Next() {
@@ -136,6 +138,66 @@ func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
 		transactions = append(transactions, transaction)
 	}
 	return transactions, nil
+
+}
+
+func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*types.TransactionView, error) {
+	query := `select 
+					t.amount,
+					t.id,
+					t.cost_of_living,
+					t."date", 
+					t.transaction_type, 
+					t.description, 
+					t.paid, 
+					c.id as CreditCardID, 
+					c."name" as CreditCard, 
+					c2.description as Category, 
+					a."name" as Account
+				from "transaction" t 
+				left join creditcard c on c.id = t.creditcard_id 
+				left join category c2 on c2.id = t.category_id 
+				left join account a on a.id = t.account_id
+				where t.date between $1 and $2 
+				order by t.date`
+
+	rows, err := s.db.Query(query, startDate, endDate)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	transactions := []*types.TransactionView{}
+
+	for rows.Next() {
+		transaction, err := scanIntoTransactionView(rows)
+		if err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, transaction)
+	}
+
+	return transactions, nil
+}
+
+func scanIntoTransactionView(rows *sql.Rows) (*types.TransactionView, error) {
+	transaction := &types.TransactionView{}
+	err := rows.Scan(
+		&transaction.Amount,
+		&transaction.ID,
+		&transaction.CostOfLiving,
+		&transaction.Date,
+		&transaction.TransactionType,
+		&transaction.Description,
+		&transaction.Paid,
+		&transaction.CreditCardID,
+		&transaction.CreditCard,
+		&transaction.Category,
+		&transaction.Account,
+	)
+
+	return transaction, err
 }
 
 func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {

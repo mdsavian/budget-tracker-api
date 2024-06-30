@@ -29,7 +29,6 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Println(transactionInput.Date)
 	transactionDate, err := time.Parse("2006-01-02", transactionInput.Date)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -69,4 +68,77 @@ func (s *APIServer) handleGetTransaction(w http.ResponseWriter, r *http.Request)
 	}
 
 	respondWithJSON(w, http.StatusOK, transactions)
+}
+
+func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Request) {
+	type CategoryTotal struct {
+		Name  string  `json:"name"`
+		Total float64 `json:"total"`
+	}
+
+	type ObjetoRetorno struct {
+		Transactions    []*types.TransactionView `json:"transactions"`
+		TotalCredit     float64                  `json:"totalCredit"`
+		TotalDebit      float64                  `json:"totalDebit"`
+		TotalCreditCard float64                  `json:"totalCreditCard"`
+		CategoryTotals  []CategoryTotal          `json:"categoryTotals"`
+		Accounts        []*types.Account         `json:"accounts"`
+	}
+
+	now := time.Now().AddDate(0, -1, 0)
+	firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	lastDay := firstDay.AddDate(0, 1, -1)
+
+	transactions, err := s.store.GetTransactionsByDate(firstDay, lastDay)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var totalCredit float64 = 0
+	var totalDebit float64 = 0
+	var totalCreditCard float64 = 0
+	var categoryMap = map[string]float64{}
+
+	for _, transaction := range transactions {
+		log.Println(transaction.TransactionType)
+		if transaction.TransactionType == types.TransactionTypeCredit {
+			totalCredit += transaction.Amount
+		} else if transaction.TransactionType == types.TransactionTypeDebit {
+			totalDebit += transaction.Amount
+			categoryMap[transaction.Category] += transaction.Amount
+		}
+
+		if transaction.CreditCardID != nil {
+			totalCreditCard += transaction.Amount
+		}
+	}
+
+	accounts, err := s.store.GetAccounts()
+	if err != nil {
+		respondWithJSON(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var categoryTotals []CategoryTotal
+	for category, total := range categoryMap {
+		categoryTotals = append(categoryTotals, CategoryTotal{Name: category, Total: total})
+	}
+
+	xx := ObjetoRetorno{
+		Transactions:    transactions,
+		TotalCredit:     totalCredit,
+		TotalDebit:      totalDebit,
+		TotalCreditCard: totalCreditCard,
+		CategoryTotals:  categoryTotals,
+		Accounts:        accounts,
+	}
+
+	log.Println(categoryTotals, totalCredit, totalDebit, totalCreditCard)
+
+	respondWithJSON(w, http.StatusOK, xx)
+
+	// group by credit card
+	// saldo atual conta pf e conta pj
+
 }

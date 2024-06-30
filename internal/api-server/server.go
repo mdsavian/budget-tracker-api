@@ -14,6 +14,7 @@ type Storage interface {
 	// Transaction
 	CreateTransaction(*types.Transaction) error
 	GetTransaction() ([]*types.Transaction, error)
+	GetTransactionsByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
 
 	// CreditCard
 	CreateCreditCard(*types.CreditCard) error
@@ -62,6 +63,8 @@ func NewServer(listenAddr string, store Storage) *APIServer {
 
 func (s *APIServer) Start() {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /dashboard", s.validateSession(s.handleGetDashboardInfo))
 
 	mux.HandleFunc("POST /transaction", s.validateSession(s.handleCreateTransaction))
 	mux.HandleFunc("GET /transaction", s.validateSession(s.handleGetTransaction))
