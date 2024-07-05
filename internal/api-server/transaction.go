@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -76,7 +75,7 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		Total float64 `json:"total"`
 	}
 
-	type ObjetoRetorno struct {
+	type DashboardInfo struct {
 		Transactions    []*types.TransactionView `json:"transactions"`
 		TotalCredit     float64                  `json:"totalCredit"`
 		TotalDebit      float64                  `json:"totalDebit"`
@@ -85,11 +84,12 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		Accounts        []*types.Account         `json:"accounts"`
 	}
 
-	now := time.Now().AddDate(0, -1, 0)
+	now := time.Now().AddDate(0, -3, 0)
 	firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	lastDay := firstDay.AddDate(0, 1, -1)
 
 	transactions, err := s.store.GetTransactionsByDate(firstDay, lastDay)
+
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -101,7 +101,6 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	var categoryMap = map[string]float64{}
 
 	for _, transaction := range transactions {
-		log.Println(transaction.TransactionType)
 		if transaction.TransactionType == types.TransactionTypeCredit {
 			totalCredit += transaction.Amount
 		} else if transaction.TransactionType == types.TransactionTypeDebit {
@@ -125,7 +124,7 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		categoryTotals = append(categoryTotals, CategoryTotal{Name: category, Total: total})
 	}
 
-	xx := ObjetoRetorno{
+	dashboardInfo := DashboardInfo{
 		Transactions:    transactions,
 		TotalCredit:     totalCredit,
 		TotalDebit:      totalDebit,
@@ -134,9 +133,7 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		Accounts:        accounts,
 	}
 
-	log.Println(categoryTotals, totalCredit, totalDebit, totalCreditCard)
-
-	respondWithJSON(w, http.StatusOK, xx)
+	respondWithJSON(w, http.StatusOK, dashboardInfo)
 
 	// group by credit card
 	// saldo atual conta pf e conta pj

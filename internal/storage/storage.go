@@ -114,7 +114,6 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 	if err != nil {
 		return err
 	}
-
 	defer conn.Close()
 
 	return nil

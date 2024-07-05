@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"time"
 
@@ -86,7 +85,6 @@ func (s *APIServer) handleArchiveCreditCard(w http.ResponseWriter, r *http.Reque
 	}
 
 	err = s.store.ArchiveCreditCard(id)
-	log.Println(err)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
