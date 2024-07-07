@@ -194,12 +194,13 @@ func getOrCreateCreditCard(name string, store *storage.PostgresStore) *types.Cre
 			ID:         uuid.Must(uuid.NewV7()),
 			Name:       name,
 			ClosingDay: 10,
+			DueDay:     16,
 			CreatedAt:  time.Now().UTC(),
 			UpdatedAt:  time.Now().UTC(),
 		}
 		err := store.CreateCreditCard(creditCard)
 		if err != nil {
-			log.Fatal("error creating credit card ")
+			log.Fatal("error creating credit card ", err)
 		}
 	}
 	return creditCard

@@ -134,8 +134,4 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	respondWithJSON(w, http.StatusOK, dashboardInfo)
-
-	// group by credit card
-	// saldo atual conta pf e conta pj
-
 }

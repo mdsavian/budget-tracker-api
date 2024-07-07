@@ -69,9 +69,10 @@ type CreditCard struct {
 	ID         uuid.UUID `json:"id"`
 	Name       string    `json:"name"`
 	Archived   bool      `json:"archived"`
-	ClosingDay int8      `json:"closing_day"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	DueDay     int8      `json:"dueDay"`
+	ClosingDay int8      `json:"closingDay"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type TransactionType string
