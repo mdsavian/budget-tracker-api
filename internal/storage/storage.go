@@ -75,7 +75,7 @@ func (s *PostgresStore) createTransactionTable() error {
 		creditcard_id UUID NULL,
 		category_id UUID NOT NULL,
 		transaction_type varchar (100) NOT NULL,
-		date timestamptz NOT NULL, 
+		"date" date NOT NULL, 
 		description varchar(500) NOT NULL,
 		amount numeric NOT NULL,
 		paid boolean NOT NULL DEFAULT false,
@@ -88,8 +88,14 @@ func (s *PostgresStore) createTransactionTable() error {
 		CONSTRAINT "transaction_card" FOREIGN KEY ("creditcard_id") REFERENCES "creditcard" ("id"),
 		CONSTRAINT "transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id")
 	)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error {
@@ -112,16 +118,18 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.CreatedAt,
 		transaction.UpdatedAt)
 	if err != nil {
+		defer conn.Close()
 		return err
 	}
-	defer conn.Close()
 
+	defer conn.Close()
 	return nil
 }
 
 func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
 	rows, err := s.db.Query("select * from transaction")
 	if err != nil {
+		defer rows.Close()
 		return nil, err
 	}
 
@@ -163,6 +171,7 @@ func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*
 	rows, err := s.db.Query(query, startDate, endDate)
 
 	if err != nil {
+		defer rows.Close()
 		return nil, err
 	}
 	defer rows.Close()
@@ -224,23 +233,36 @@ func (s *PostgresStore) createCreditCardTable() error {
 				id UUID NOT NULL, 
 				name varchar (60) NOT NULL, 
 				archived boolean NOT NULL DEFAULT false, 
+				due_day int NOT NULL, 
 				closing_day int NOT NULL, 
 				created_at timestamptz NOT NULL, 
 				updated_at timestamptz NOT NULL, 
 				CONSTRAINT uc_name UNIQUE(name),
 				PRIMARY KEY ("id")
 	)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {
 	query := `insert into "creditcard" 
-	(id, name, closing_day, created_at, updated_at)
-	values ($1, $2, $3, $4, $5)`
+	(id, name, due_day, closing_day, created_at, updated_at)
+	values ($1, $2, $3, $4, $5, $6)`
 
-	_, err := s.db.Query(query, creditCard.ID, creditCard.Name, creditCard.ClosingDay, creditCard.CreatedAt, creditCard.UpdatedAt)
-	return err
+	conn, err := s.db.Query(query, creditCard.ID, creditCard.Name, creditCard.DueDay, creditCard.ClosingDay, creditCard.CreatedAt, creditCard.UpdatedAt)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) GetCreditCardByID(id uuid.UUID) (*types.CreditCard, error) {
@@ -293,6 +315,7 @@ func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
 	err := rows.Scan(
 		&card.ID,
 		&card.Name,
+		&card.DueDay,
 		&card.ClosingDay,
 		&card.Archived,
 		&card.CreatedAt,
@@ -303,9 +326,14 @@ func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
 
 func (s *PostgresStore) ArchiveCreditCard(creditCardID uuid.UUID) error {
 	query := `UPDATE creditcard SET archived = $1 where id = $2`
-	_, err := s.db.Query(query, true, creditCardID)
+	conn, err := s.db.Query(query, true, creditCardID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
 
-	return err
+	defer conn.Close()
+	return nil
 }
 
 // Category
@@ -319,8 +347,14 @@ func (s *PostgresStore) CreateCategoryTable() error {
 				CONSTRAINT uc_description UNIQUE(description),
 				PRIMARY KEY ("id")
 	)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateCategory(category *types.Category) error {
@@ -328,8 +362,14 @@ func (s *PostgresStore) CreateCategory(category *types.Category) error {
 	(id, description, created_at, updated_at)
 	values ($1, $2, $3, $4)`
 
-	_, err := s.db.Query(query, category.ID, category.Description, category.CreatedAt, category.UpdatedAt)
-	return err
+	conn, err := s.db.Query(query, category.ID, category.Description, category.CreatedAt, category.UpdatedAt)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) GetCategoryByDescription(description string) (*types.Category, error) {
@@ -396,8 +436,14 @@ func scanIntoCategory(rows *sql.Rows) (*types.Category, error) {
 
 func (s *PostgresStore) ArchiveCategory(categoryID uuid.UUID) error {
 	query := `UPDATE category SET archived = $1 where id = $2`
-	_, err := s.db.Query(query, true, categoryID)
-	return err
+	conn, err := s.db.Query(query, true, categoryID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 // Session
@@ -411,8 +457,14 @@ func (s *PostgresStore) createSessionTable() error {
 				PRIMARY KEY ("id"),
 				CONSTRAINT "session_users" FOREIGN KEY ("user_id") REFERENCES "user" ("id")
 				)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateSession(session *types.Session) error {
@@ -420,20 +472,38 @@ func (s *PostgresStore) CreateSession(session *types.Session) error {
 	(id, user_id, expires_at, created_at, updated_at)
 	values ($1, $2, $3, $4, $5)`
 
-	_, err := s.db.Query(query, session.ID, session.UserId, session.ExpiresAt, session.CreatedAt, session.UpdatedAt)
-	return err
+	conn, err := s.db.Query(query, session.ID, session.UserId, session.ExpiresAt, session.CreatedAt, session.UpdatedAt)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) DeleteSession(sessionID uuid.UUID) error {
 	query := `DELETE from session where id = $1`
-	_, err := s.db.Query(query, sessionID)
-	return err
+	conn, err := s.db.Query(query, sessionID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) UpdateSession(sessionID uuid.UUID, expiresAt time.Time) error {
 	query := `UPDATE session SET expires_at = $1 where id = $2`
-	_, err := s.db.Query(query, expiresAt, sessionID)
-	return err
+	conn, err := s.db.Query(query, expiresAt, sessionID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) GetSessionByID(id uuid.UUID) (*types.Session, error) {
@@ -465,8 +535,14 @@ func (s *PostgresStore) createUserTable() error {
 				email varchar (200) NOT NULL, 
 				password varchar NOT NULL
 				)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateUser(user *types.User) error {
@@ -474,15 +550,27 @@ func (s *PostgresStore) CreateUser(user *types.User) error {
 	(id, name, email, password, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
-	_, err := s.db.Query(query, user.ID, user.Name, user.Email, user.EncryptedPassword, user.CreatedAt, user.UpdatedAt)
-	return err
+	conn, err := s.db.Query(query, user.ID, user.Name, user.Email, user.EncryptedPassword, user.CreatedAt, user.UpdatedAt)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) DeleteUser(id uuid.UUID) error {
 	query := `delete from "user" where id = $1`
 
-	_, err := s.db.Query(query, id)
-	return err
+	conn, err := s.db.Query(query, id)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) GetUserByEmail(email string) (*types.User, error) {
@@ -537,8 +625,14 @@ func (s *PostgresStore) createAccountTable() error {
 				account_type varchar (50) NOT NULL,
 				CONSTRAINT "uq_name_type" UNIQUE(name, account_type)
 				)`
-	_, err := s.db.Query(query)
-	return err
+	conn, err := s.db.Query(query)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
 }
 
 func (s *PostgresStore) CreateAccount(acc *types.Account) error {
@@ -546,25 +640,35 @@ func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 	(id, name, account_type, balance, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
-	_, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
+	conn, err := s.db.Query(query, acc.ID, acc.Name, acc.AccountType, acc.Balance, acc.CreatedAt, acc.UpdatedAt)
 	if err != nil {
+		defer conn.Close()
 		return err
 	}
 
+	defer conn.Close()
 	return nil
 }
 
 func (s *PostgresStore) DeleteAccount(id uuid.UUID) error {
 	query := "delete from account where id = $1"
 
-	_, err := s.db.Query(query, id)
-	return err
+	conn, err := s.db.Query(query, id)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
+
 }
 
 func (s *PostgresStore) GetAccountByID(id uuid.UUID) (*types.Account, error) {
 	query := "select * from account where id = $1"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
+		defer rows.Close()
 		return nil, err
 	}
 
