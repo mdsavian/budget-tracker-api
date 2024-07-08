@@ -23,7 +23,7 @@ type Transaction struct {
 	Date            time.Time `json:"date"`
 	Description     string    `json:"description"`
 	Category        string    `json:"category"`
-	Amount          float64   `json:"amount"`
+	Amount          float32   `json:"amount"`
 	Paid            bool      `json:"paid"`
 }
 
@@ -80,8 +80,7 @@ func readXlsx(path string, store *storage.PostgresStore) {
 		var amount float64
 		if cells[6].Type == xlsxreader.TypeNumerical {
 			amountString := cells[6].Value
-
-			amount, err = strconv.ParseFloat(amountString, 64)
+			amount, err = strconv.ParseFloat(amountString, 32)
 			if err != nil {
 				log.Fatal("error parsing amount ", amountString)
 			}
@@ -94,7 +93,7 @@ func readXlsx(path string, store *storage.PostgresStore) {
 			Date:            date,
 			Description:     cells[4].Value,
 			Category:        cells[5].Value,
-			Amount:          amount,
+			Amount:          float32(amount),
 			Paid:            cells[7].Value == "Sim",
 		}
 

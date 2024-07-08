@@ -51,7 +51,7 @@ func (at AccountType) String() string {
 type Account struct {
 	ID          uuid.UUID   `json:"id"`
 	Name        string      `json:"name"`
-	Balance     int64       `json:"balance"`
+	Balance     float32     `json:"balance"`
 	AccountType AccountType `json:"account_type"`
 	CreatedAt   time.Time   `json:"created_at"`
 	UpdatedAt   time.Time   `json:"updated_at"`
@@ -94,7 +94,7 @@ type Transaction struct {
 	TransactionType TransactionType `json:"transactionType"`
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
-	Amount          float64         `json:"amount"`
+	Amount          float32         `json:"amount"`
 	Fulfilled       bool            `json:"fullfilled"`
 	CreatedAt       time.Time       `json:"createdAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`
