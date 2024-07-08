@@ -17,7 +17,7 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 		TransactionType types.TransactionType `json:"transaction_type"`
 		Date            string                `json:"date"`
 		Description     string                `json:"description"`
-		Amount          float64               `json:"amount"`
+		Amount          float32               `json:"amount"`
 		Fulfilled       bool                  `json:"fulfilled"`
 		CostOfLiving    bool                  `json:"cost_of_living"`
 	}
@@ -60,7 +60,7 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 
 func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 	type CreateIncomeInput struct {
-		Amount      float64   `json:"amount"`
+		Amount      float32   `json:"amount"`
 		Date        string    `json:"date"`
 		Description string    `json:"description"`
 		CategoryId  uuid.UUID `json:"category_id"`
@@ -93,6 +93,11 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.CreateTransaction(incomeTransaction); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
+	}
+
+	err = s.store.UpdateAccountBalance(incomeInput.AccountID, incomeInput.Amount, types.TransactionTypeCredit)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
 
 	respondWithJSON(w, http.StatusOK, incomeTransaction)
