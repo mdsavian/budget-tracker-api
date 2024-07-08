@@ -149,8 +149,7 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 			Date:            transaction.Date,
 			Description:     transaction.Description,
 			Amount:          transaction.Amount,
-			Paid:            transaction.Paid,
-			CostOfLiving:    false,
+			Fulfilled:       transaction.Paid,
 			CreatedAt:       time.Now().UTC(),
 			UpdatedAt:       time.Now().UTC(),
 		}

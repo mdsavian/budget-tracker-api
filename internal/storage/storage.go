@@ -78,8 +78,7 @@ func (s *PostgresStore) createTransactionTable() error {
 		"date" date NOT NULL, 
 		description varchar(500) NOT NULL,
 		amount numeric NOT NULL,
-		paid boolean NOT NULL DEFAULT false,
-		cost_of_living boolean NOT NULL DEFAULT false,		
+		fulfilled boolean NOT NULL DEFAULT false,
 		created_at timestamptz NOT NULL, 
 		updated_at timestamptz NOT NULL, 
 
@@ -101,8 +100,8 @@ func (s *PostgresStore) createTransactionTable() error {
 func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error {
 	query := `insert into "transaction" 
 	(id, account_id, creditcard_id, category_id, transaction_type, date, description, 
-		amount, paid, cost_of_living, created_at, updated_at)
-	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		amount, fulfilled, created_at, updated_at)
+	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
 
 	conn, err := s.db.Query(query,
 		transaction.ID,
@@ -113,8 +112,7 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.Date,
 		transaction.Description,
 		transaction.Amount,
-		transaction.Paid,
-		transaction.CostOfLiving,
+		transaction.Fulfilled,
 		transaction.CreatedAt,
 		transaction.UpdatedAt)
 	if err != nil {
@@ -156,7 +154,7 @@ func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*
 					t."date", 
 					t.transaction_type, 
 					t.description, 
-					t.paid, 
+					t.fulfilled, 
 					c.id as CreditCardID, 
 					c."name" as CreditCard, 
 					c2.description as Category, 
@@ -198,7 +196,7 @@ func scanIntoTransactionView(rows *sql.Rows) (*types.TransactionView, error) {
 		&transaction.Date,
 		&transaction.TransactionType,
 		&transaction.Description,
-		&transaction.Paid,
+		&transaction.Fulfilled,
 		&transaction.CreditCardID,
 		&transaction.CreditCard,
 		&transaction.Category,
@@ -219,8 +217,7 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 		&transaction.Date,
 		&transaction.Description,
 		&transaction.Amount,
-		&transaction.Paid,
-		&transaction.CostOfLiving,
+		&transaction.Fulfilled,
 		&transaction.CreatedAt,
 		&transaction.UpdatedAt)
 

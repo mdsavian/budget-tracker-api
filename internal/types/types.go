@@ -95,8 +95,7 @@ type Transaction struct {
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
 	Amount          float64         `json:"amount"`
-	Paid            bool            `json:"paid"`
-	CostOfLiving    bool            `json:"costOfLiving"`
+	Fulfilled       bool            `json:"fullfilled"`
 	CreatedAt       time.Time       `json:"createdAt"`
 	UpdatedAt       time.Time       `json:"updatedAt"`
 }
@@ -111,6 +110,6 @@ type TransactionView struct {
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
 	Amount          float64         `json:"amount"`
-	Paid            bool            `json:"paid"`
+	Fulfilled       bool            `json:"fulfilled"`
 	CostOfLiving    bool            `json:"costOfLiving"`
 }

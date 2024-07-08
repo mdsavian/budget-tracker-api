@@ -18,7 +18,7 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 		Date            string                `json:"date"`
 		Description     string                `json:"description"`
 		Amount          float64               `json:"amount"`
-		Paid            bool                  `json:"paid"`
+		Fulfilled       bool                  `json:"fulfilled"`
 		CostOfLiving    bool                  `json:"cost_of_living"`
 	}
 
@@ -42,8 +42,7 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 		Date:            transactionDate,
 		Description:     transactionInput.Description,
 		Amount:          transactionInput.Amount,
-		Paid:            transactionInput.Paid,
-		CostOfLiving:    transactionInput.CostOfLiving,
+		Fulfilled:       transactionInput.Fulfilled,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}
