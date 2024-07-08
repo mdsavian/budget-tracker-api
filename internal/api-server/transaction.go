@@ -9,19 +9,19 @@ import (
 	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
-type CreateTransactionInput struct {
-	AccountID       uuid.UUID             `json:"account_id"`
-	CreditCardID    uuid.UUID             `json:"credit_card_id"`
-	CategoryID      uuid.UUID             `json:"category_id"`
-	TransactionType types.TransactionType `json:"transaction_type"`
-	Date            string                `json:"date"`
-	Description     string                `json:"description"`
-	Amount          float64               `json:"amount"`
-	Paid            bool                  `json:"paid"`
-	CostOfLiving    bool                  `json:"cost_of_living"`
-}
-
 func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Request) {
+	type CreateTransactionInput struct {
+		AccountID       uuid.UUID             `json:"account_id"`
+		CreditCardID    uuid.UUID             `json:"credit_card_id"`
+		CategoryID      uuid.UUID             `json:"category_id"`
+		TransactionType types.TransactionType `json:"transaction_type"`
+		Date            string                `json:"date"`
+		Description     string                `json:"description"`
+		Amount          float64               `json:"amount"`
+		Paid            bool                  `json:"paid"`
+		CostOfLiving    bool                  `json:"cost_of_living"`
+	}
+
 	transactionInput := CreateTransactionInput{}
 	if err := json.NewDecoder(r.Body).Decode(&transactionInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -57,6 +57,46 @@ func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Reque
 	}
 
 	respondWithJSON(w, http.StatusOK, transaction)
+}
+
+func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
+	type CreateIncomeInput struct {
+		Amount      float64   `json:"amount"`
+		Date        string    `json:"date"`
+		Description string    `json:"description"`
+		CategoryId  uuid.UUID `json:"category_id"`
+		AccountID   uuid.UUID `json:"account_id"`
+	}
+
+	incomeInput := CreateIncomeInput{}
+	if err := json.NewDecoder(r.Body).Decode(&incomeInput); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	incomeDate, err := time.Parse("2006-01-02", incomeInput.Date)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	incomeTransaction := &types.Transaction{
+		ID:              uuid.Must(uuid.NewV7()),
+		TransactionType: types.TransactionTypeCredit,
+		Amount:          incomeInput.Amount,
+		Date:            incomeDate,
+		Description:     incomeInput.Description,
+		CategoryID:      incomeInput.CategoryId,
+		AccountID:       incomeInput.AccountID,
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
+	}
+
+	if err := s.store.CreateTransaction(incomeTransaction); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+	}
+
+	respondWithJSON(w, http.StatusOK, incomeTransaction)
 }
 
 func (s *APIServer) handleGetTransaction(w http.ResponseWriter, r *http.Request) {
