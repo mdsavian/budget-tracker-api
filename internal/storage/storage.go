@@ -632,6 +632,42 @@ func (s *PostgresStore) createAccountTable() error {
 	return nil
 }
 
+func (s *PostgresStore) UpdateAccountBalance(accountID uuid.UUID, amount float32, transactionType types.TransactionType) error {
+	var balance float32
+	var newBalance float32
+
+	query := "select balance from account where id = $1"
+	rows, err := s.db.Query(query, accountID)
+	if err != nil {
+		defer rows.Close()
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.Scan(&balance)
+		if err != nil {
+			return err
+		}
+	}
+
+	if transactionType == types.TransactionTypeCredit {
+		newBalance = balance + amount
+	} else {
+		newBalance = balance - amount
+	}
+
+	query = `update account set balance = $1 where id = $2`
+	conn, err := s.db.Query(query, newBalance, accountID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+	defer conn.Close()
+
+	return nil
+}
+
 func (s *PostgresStore) CreateAccount(acc *types.Account) error {
 	query := `insert into account 
 	(id, name, account_type, balance, created_at, updated_at)

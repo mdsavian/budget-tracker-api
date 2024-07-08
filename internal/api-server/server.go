@@ -32,6 +32,7 @@ type Storage interface {
 
 	// Account
 	CreateAccount(*types.Account) error
+	UpdateAccountBalance(uuid.UUID, float32, types.TransactionType) error
 	DeleteAccount(uuid.UUID) error
 	GetAccountByID(uuid.UUID) (*types.Account, error)
 	GetAccounts() ([]*types.Account, error)
