@@ -192,7 +192,6 @@ func scanIntoTransactionView(rows *sql.Rows) (*types.TransactionView, error) {
 	err := rows.Scan(
 		&transaction.Amount,
 		&transaction.ID,
-		&transaction.CostOfLiving,
 		&transaction.Date,
 		&transaction.TransactionType,
 		&transaction.Description,
