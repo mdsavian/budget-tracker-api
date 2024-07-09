@@ -9,53 +9,53 @@ import (
 	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
-func (s *APIServer) handleCreateTransaction(w http.ResponseWriter, r *http.Request) {
-	type CreateTransactionInput struct {
-		AccountID       uuid.UUID             `json:"account_id"`
-		CreditCardID    uuid.UUID             `json:"credit_card_id"`
-		CategoryID      uuid.UUID             `json:"category_id"`
-		TransactionType types.TransactionType `json:"transaction_type"`
-		Date            string                `json:"date"`
-		Description     string                `json:"description"`
-		Amount          float32               `json:"amount"`
-		Fulfilled       bool                  `json:"fulfilled"`
-		CostOfLiving    bool                  `json:"cost_of_living"`
+func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) {
+	type CreateExpenseInput struct {
+		Amount      float32   `json:"amount"`
+		Date        string    `json:"date"`
+		Description string    `json:"description"`
+		CategoryId  uuid.UUID `json:"category_id"`
+		AccountID   uuid.UUID `json:"account_id"`
+		Fulfilled   bool      `json:"fulfilled"`
+		Fixed       bool      `json:"fixed"`
 	}
-
-	transactionInput := CreateTransactionInput{}
-	if err := json.NewDecoder(r.Body).Decode(&transactionInput); err != nil {
+	expenseInput := CreateExpenseInput{}
+	if err := json.NewDecoder(r.Body).Decode(&expenseInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	transactionDate, err := time.Parse("2006-01-02", transactionInput.Date)
+	expenseDate, err := time.Parse("2006-01-02", expenseInput.Date)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	transaction := &types.Transaction{
+	expenseTransaction := &types.Transaction{
 		ID:              uuid.Must(uuid.NewV7()),
-		AccountID:       transactionInput.AccountID,
-		CategoryID:      transactionInput.CategoryID,
-		TransactionType: transactionInput.TransactionType,
-		Date:            transactionDate,
-		Description:     transactionInput.Description,
-		Amount:          transactionInput.Amount,
-		Fulfilled:       transactionInput.Fulfilled,
+		TransactionType: types.TransactionTypeDebit,
+		Amount:          expenseInput.Amount,
+		Date:            expenseDate,
+		Description:     expenseInput.Description,
+		CategoryID:      expenseInput.CategoryId,
+		AccountID:       expenseInput.AccountID,
+		Fulfilled:       expenseInput.Fulfilled,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}
 
-	if transactionInput.CreditCardID != uuid.Nil {
-		transaction.CreditCardID = &transactionInput.CreditCardID
-	}
-
-	if err := s.store.CreateTransaction(transaction); err != nil {
+	if err := s.store.CreateTransaction(expenseTransaction); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
 
-	respondWithJSON(w, http.StatusOK, transaction)
+	if expenseInput.Fulfilled {
+		err = s.store.UpdateAccountBalance(expenseInput.AccountID, expenseInput.Amount, types.TransactionTypeDebit)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+	}
+
+	respondWithJSON(w, http.StatusOK, expenseTransaction)
 }
 
 func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
@@ -97,9 +97,11 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
 
-	err = s.store.UpdateAccountBalance(incomeInput.AccountID, incomeInput.Amount, types.TransactionTypeCredit)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+	if incomeInput.Fulfilled {
+		err = s.store.UpdateAccountBalance(incomeInput.AccountID, incomeInput.Amount, types.TransactionTypeCredit)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
 	}
 
 	respondWithJSON(w, http.StatusOK, incomeTransaction)
