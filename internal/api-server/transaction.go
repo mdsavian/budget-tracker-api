@@ -65,6 +65,7 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 		Description string    `json:"description"`
 		CategoryId  uuid.UUID `json:"category_id"`
 		AccountID   uuid.UUID `json:"account_id"`
+		Fulfilled   bool      `json:"fulfilled"`
 	}
 
 	incomeInput := CreateIncomeInput{}
@@ -87,6 +88,7 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 		Description:     incomeInput.Description,
 		CategoryID:      incomeInput.CategoryId,
 		AccountID:       incomeInput.AccountID,
+		Fulfilled:       incomeInput.Fulfilled,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}
