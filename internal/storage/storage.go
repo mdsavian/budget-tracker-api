@@ -60,6 +60,10 @@ func (s *PostgresStore) createTables() error {
 		return err
 	}
 
+	if err := s.createRecurringTransactionTable(); err != nil {
+		return err
+	}
+
 	if err := s.createTransactionTable(); err != nil {
 		return err
 	}
@@ -67,16 +71,47 @@ func (s *PostgresStore) createTables() error {
 	return nil
 }
 
-// Transaction
+// Recurring transaction
+func (s *PostgresStore) createRecurringTransactionTable() error {
+	query := `create table if not exists "recurring_transaction" (
+		id UUID NOT NULL, 
+		account_id UUID NOT NULL,
+		creditcard_id UUID NULL,
+		category_id UUID NOT NULL,
+
+		transaction_type varchar (100) NOT NULL,
+		day numeric NOT NULL, 
+		description varchar(200) NOT NULL,
+		amount numeric NOT NULL,
+		archived boolean NOT NULL DEFAULT false, 
+
+		created_at timestamptz NOT NULL, 
+		updated_at timestamptz NOT NULL, 
+
+		PRIMARY KEY ("id"),
+		CONSTRAINT "recurring_transaction_account" FOREIGN KEY ("account_id") REFERENCES "account" ("id"),
+		CONSTRAINT "recurring_transaction_card" FOREIGN KEY ("creditcard_id") REFERENCES "credit_card" ("id"),
+		CONSTRAINT "recurring_transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id")
+	)`
+	_, err := s.db.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *PostgresStore) createTransactionTable() error {
 	query := `create table if not exists "transaction" (
 		id UUID NOT NULL, 
 		account_id UUID NOT NULL,
 		creditcard_id UUID NULL,
 		category_id UUID NOT NULL,
+		recurring_transaction_id UUID NULL,
+
 		transaction_type varchar (100) NOT NULL,
 		"date" date NOT NULL, 
-		description varchar(500) NOT NULL,
+		description varchar(200) NOT NULL,
 		amount numeric NOT NULL,
 		fulfilled boolean NOT NULL DEFAULT false,
 		created_at timestamptz NOT NULL, 
@@ -84,16 +119,15 @@ func (s *PostgresStore) createTransactionTable() error {
 
 		PRIMARY KEY ("id"),
 		CONSTRAINT "transaction_account" FOREIGN KEY ("account_id") REFERENCES "account" ("id"),
-		CONSTRAINT "transaction_card" FOREIGN KEY ("creditcard_id") REFERENCES "creditcard" ("id"),
-		CONSTRAINT "transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id")
+		CONSTRAINT "transaction_card" FOREIGN KEY ("creditcard_id") REFERENCES "credit_card" ("id"),
+		CONSTRAINT "transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id"),
+		CONSTRAINT "transaction_recurring" FOREIGN KEY ("recurring_transaction_id") REFERENCES "recurring_transaction" ("id")
 	)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -160,7 +194,7 @@ func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*
 					c2.description as Category, 
 					a."name" as Account
 				from "transaction" t 
-				left join creditcard c on c.id = t.creditcard_id 
+				left join credit_card c on c.id = t.creditcard_id 
 				left join category c2 on c2.id = t.category_id 
 				left join account a on a.id = t.account_id
 				where t.date between $1 and $2 
@@ -225,7 +259,7 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 
 // CreditCard
 func (s *PostgresStore) createCreditCardTable() error {
-	query := `create table if not exists "creditcard" (
+	query := `create table if not exists "credit_card" (
 				id UUID NOT NULL, 
 				name varchar (60) NOT NULL, 
 				archived boolean NOT NULL DEFAULT false, 
@@ -236,18 +270,16 @@ func (s *PostgresStore) createCreditCardTable() error {
 				CONSTRAINT uc_name UNIQUE(name),
 				PRIMARY KEY ("id")
 	)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
 func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {
-	query := `insert into "creditcard" 
+	query := `insert into "credit_card" 
 	(id, name, due_day, closing_day, created_at, updated_at)
 	values ($1, $2, $3, $4, $5, $6)`
 
@@ -262,7 +294,7 @@ func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {
 }
 
 func (s *PostgresStore) GetCreditCardByID(id uuid.UUID) (*types.CreditCard, error) {
-	query := "select * from creditcard where id = $1"
+	query := "select * from credit_card where id = $1"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
 		return nil, err
@@ -275,7 +307,7 @@ func (s *PostgresStore) GetCreditCardByID(id uuid.UUID) (*types.CreditCard, erro
 	return nil, fmt.Errorf("credit card %v not found", id)
 }
 func (s *PostgresStore) GetCreditCardByName(name string) (*types.CreditCard, error) {
-	query := "select * from creditcard where name = $1"
+	query := "select * from credit_card where name = $1"
 	rows, err := s.db.Query(query, name)
 	if err != nil {
 		return nil, err
@@ -289,7 +321,7 @@ func (s *PostgresStore) GetCreditCardByName(name string) (*types.CreditCard, err
 }
 
 func (s *PostgresStore) GetCreditCard() ([]*types.CreditCard, error) {
-	rows, err := s.db.Query("select * from creditcard")
+	rows, err := s.db.Query("select * from credit_card")
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +353,7 @@ func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
 }
 
 func (s *PostgresStore) ArchiveCreditCard(creditCardID uuid.UUID) error {
-	query := `UPDATE creditcard SET archived = $1 where id = $2`
+	query := `UPDATE credit_card SET archived = $1 where id = $2`
 	conn, err := s.db.Query(query, true, creditCardID)
 	if err != nil {
 		defer conn.Close()
@@ -343,13 +375,11 @@ func (s *PostgresStore) CreateCategoryTable() error {
 				CONSTRAINT uc_description UNIQUE(description),
 				PRIMARY KEY ("id")
 	)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -453,13 +483,11 @@ func (s *PostgresStore) createSessionTable() error {
 				PRIMARY KEY ("id"),
 				CONSTRAINT "session_users" FOREIGN KEY ("user_id") REFERENCES "user" ("id")
 				)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -531,13 +559,11 @@ func (s *PostgresStore) createUserTable() error {
 				email varchar (200) NOT NULL, 
 				password varchar NOT NULL
 				)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -621,13 +647,11 @@ func (s *PostgresStore) createAccountTable() error {
 				account_type varchar (50) NOT NULL,
 				CONSTRAINT "uq_name_type" UNIQUE(name, account_type)
 				)`
-	conn, err := s.db.Query(query)
+	_, err := s.db.Exec(query)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
