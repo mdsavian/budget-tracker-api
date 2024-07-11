@@ -112,3 +112,27 @@ type TransactionView struct {
 	Amount          float64         `json:"amount"`
 	Fulfilled       bool            `json:"fulfilled"`
 }
+
+type RecurringTransaction struct {
+	ID              uuid.UUID       `json:"id"`
+	AccountID       uuid.UUID       `json:"accountId"`
+	CreditCardID    *uuid.UUID      `json:"creditCardId"`
+	CategoryID      uuid.UUID       `json:"categoryId"`
+	TransactionType TransactionType `json:"transactionType"`
+	Day             int8            `json:"day"`
+	Description     string          `json:"description"`
+	Amount          float32         `json:"amount"`
+	Archived        bool            `json:"archived"`
+	CreatedAt       time.Time       `json:"createdAt"`
+	UpdatedAt       time.Time       `json:"updatedAt"`
+}
+
+type RecurringTransactionUpdate struct {
+	AccountID       *uuid.UUID
+	CreditCardID    *uuid.UUID
+	CategoryID      *uuid.UUID
+	TransactionType *string
+	Day             *float64
+	Description     *string
+	Amount          *float64
+}

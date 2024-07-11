@@ -100,6 +100,76 @@ func (s *PostgresStore) createRecurringTransactionTable() error {
 
 	return nil
 }
+func (s *PostgresStore) CreateRecurringTransaction(recurringTransaction *types.RecurringTransaction) error {
+	query := `insert into "recurring_transaction" 
+		(id, account_id, creditcard_id, category_id, transaction_type, day, description, 
+			amount, archived, created_at, updated_at)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+
+	conn, err := s.db.Query(query,
+		recurringTransaction.ID,
+		recurringTransaction.AccountID,
+		recurringTransaction.CreditCardID,
+		recurringTransaction.CategoryID,
+		recurringTransaction.TransactionType,
+		recurringTransaction.Day,
+		recurringTransaction.Description,
+		recurringTransaction.Amount,
+		recurringTransaction.Archived,
+		recurringTransaction.CreatedAt,
+		recurringTransaction.UpdatedAt)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
+}
+
+func (s *PostgresStore) ArchiveRecurringTransaction(recurringTransactionID uuid.UUID) error {
+	query := `UPDATE recurring_transaction SET archived = $1 where id = $2`
+
+	conn, err := s.db.Query(query, true, recurringTransactionID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
+}
+
+func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransactionUpdate) error {
+	query := `UPDATE recurring_transaction SET 
+		account_id = COALESCE($1, account_id),
+		creditcard_id = COALESCE($2, creditcard_id),
+		category_id = COALESCE($3, category_id),
+		transaction_type = COALESCE($4, transaction_type),
+		day = COALESCE($5, day),
+		description = COALESCE($6, description),
+		amount = COALESCE($7, amount),
+		updated_at = $9
+		WHERE id = $10`
+
+	conn, err := s.db.Query(query,
+		update.AccountID,
+		update.CreditCardID,
+		update.CategoryID,
+		update.TransactionType,
+		update.Day,
+		update.Description,
+		update.Amount,
+		time.Now(),
+		recurringTransactionID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
+}
 
 func (s *PostgresStore) createTransactionTable() error {
 	query := `create table if not exists "transaction" (

@@ -11,6 +11,11 @@ import (
 )
 
 type Storage interface {
+	// Recurring Transaction
+	CreateRecurringTransaction(*types.RecurringTransaction) error
+	ArchiveRecurringTransaction(uuid.UUID) error
+	UpdateRecurringTransaction(uuid.UUID, *types.RecurringTransactionUpdate) error
+
 	// Transaction
 	CreateTransaction(*types.Transaction) error
 	GetTransaction() ([]*types.Transaction, error)
