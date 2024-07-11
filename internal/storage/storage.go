@@ -119,7 +119,6 @@ func (s *PostgresStore) CreateRecurringTransaction(recurringTransaction *types.R
 		recurringTransaction.CreatedAt,
 		recurringTransaction.UpdatedAt)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
@@ -203,15 +202,15 @@ func (s *PostgresStore) createTransactionTable() error {
 
 func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error {
 	query := `insert into "transaction" 
-	(id, account_id, creditcard_id, category_id, transaction_type, date, description, 
+	(id, account_id, creditcard_id, category_id, recurring_transaction_id, transaction_type, date, description, 
 		amount, fulfilled, created_at, updated_at)
-	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-
+	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 	conn, err := s.db.Query(query,
 		transaction.ID,
 		transaction.AccountID,
 		transaction.CreditCardID,
 		transaction.CategoryID,
+		transaction.RecurringTransactionID,
 		transaction.TransactionType,
 		transaction.Date,
 		transaction.Description,
@@ -220,7 +219,6 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.CreatedAt,
 		transaction.UpdatedAt)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 

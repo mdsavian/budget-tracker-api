@@ -44,6 +44,29 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 		UpdatedAt:       time.Now().UTC(),
 	}
 
+	if expenseInput.Fixed {
+		recurringTransactionID := uuid.Must(uuid.NewV7())
+
+		err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
+			ID:              recurringTransactionID,
+			AccountID:       expenseInput.AccountID,
+			CategoryID:      expenseInput.CategoryId,
+			TransactionType: types.TransactionTypeDebit,
+			Day:             int8(expenseDate.Day()),
+			Description:     expenseInput.Description,
+			Amount:          expenseInput.Amount,
+			Archived:        false,
+			CreatedAt:       time.Now().UTC(),
+			UpdatedAt:       time.Now().UTC(),
+		})
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		expenseTransaction.RecurringTransactionID = &recurringTransactionID
+	}
+
 	if err := s.store.CreateTransaction(expenseTransaction); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 	}
@@ -95,12 +118,14 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.store.CreateTransaction(incomeTransaction); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	if incomeInput.Fulfilled {
 		err = s.store.UpdateAccountBalance(incomeInput.AccountID, incomeInput.Amount, types.TransactionTypeCredit)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
 		}
 	}
 

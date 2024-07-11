@@ -87,17 +87,20 @@ func (at TransactionType) String() string {
 }
 
 type Transaction struct {
-	ID              uuid.UUID       `json:"id"`
-	AccountID       uuid.UUID       `json:"accountId"`
-	CreditCardID    *uuid.UUID      `json:"creditCardId"`
-	CategoryID      uuid.UUID       `json:"categoryId"`
+	ID                     uuid.UUID  `json:"id"`
+	AccountID              uuid.UUID  `json:"accountId"`
+	CreditCardID           *uuid.UUID `json:"creditCardId"`
+	CategoryID             uuid.UUID  `json:"categoryId"`
+	RecurringTransactionID *uuid.UUID `json:"recurringTransactionId"`
+
 	TransactionType TransactionType `json:"transactionType"`
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
 	Amount          float32         `json:"amount"`
 	Fulfilled       bool            `json:"fulfilled"`
-	CreatedAt       time.Time       `json:"createdAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type TransactionView struct {
