@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,24 +22,29 @@ type CreateCreditCardExpenseInput struct {
 }
 
 func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http.Request) {
-	creditCardExpenseInput := CreateCreditCardExpenseInput{}
-	if err := json.NewDecoder(r.Body).Decode(&creditCardExpenseInput); err != nil {
+	expenseInput := CreateCreditCardExpenseInput{}
+	if err := json.NewDecoder(r.Body).Decode(&expenseInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if creditCardExpenseInput.CreditCardID == uuid.Nil {
+	if expenseInput.CreditCardID == uuid.Nil {
 		respondWithError(w, http.StatusBadRequest, "credit card is required")
 		return
 	}
 
-	creditCard, err := s.store.GetCreditCardByID(creditCardExpenseInput.CreditCardID)
+	if expenseInput.Installments > 0 && expenseInput.Fixed {
+		respondWithError(w, http.StatusBadRequest, "installments and fixed cannot be used together")
+		return
+	}
+
+	creditCard, err := s.store.GetCreditCardByID(expenseInput.CreditCardID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	creditCardExpenseDate, err := time.Parse("2006-01-02", creditCardExpenseInput.Date)
+	creditCardExpenseDate, err := time.Parse("2006-01-02", expenseInput.Date)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -53,35 +59,70 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 
 	creditCardExpenseTransaction := &types.Transaction{
 		ID:           uuid.Must(uuid.NewV7()),
-		CategoryID:   creditCardExpenseInput.CategoryId,
-		AccountID:    creditCardExpenseInput.AccountID,
-		CreditCardID: &creditCardExpenseInput.CreditCardID,
+		CategoryID:   expenseInput.CategoryId,
+		AccountID:    expenseInput.AccountID,
+		CreditCardID: &expenseInput.CreditCardID,
 
 		TransactionType: types.TransactionTypeDebit,
-		Amount:          creditCardExpenseInput.Amount,
+		Amount:          expenseInput.Amount,
 		Date:            creditCardExpenseDate,
-		Description:     creditCardExpenseInput.Description,
+		Description:     expenseInput.Description,
 		Fulfilled:       false,
 
 		CreatedAt: time.Now().UTC(),
 		UpdatedAt: time.Now().UTC(),
 	}
 
-	if creditCardExpenseInput.Fixed {
-		recurringTransactionID, err := s.createRecurringCreditCardExpense(creditCardExpenseInput, creditCardExpenseDate)
+	if expenseInput.Fixed {
+		recurringTransactionID, err := s.createRecurringCreditCardExpense(expenseInput, creditCardExpenseDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		creditCardExpenseTransaction.RecurringTransactionID = recurringTransactionID
+
+		if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 
-	if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
+	if expenseInput.Installments > 0 {
+		amountPerInstallment := expenseInput.Amount / float32(expenseInput.Installments)
+
+		for i := 0; i < expenseInput.Installments; i++ {
+			installmentDate := creditCardExpenseDate.AddDate(0, i, 0)
+
+			installmentTransaction := &types.Transaction{
+				ID:           uuid.Must(uuid.NewV7()),
+				CategoryID:   expenseInput.CategoryId,
+				AccountID:    expenseInput.AccountID,
+				CreditCardID: &expenseInput.CreditCardID,
+
+				TransactionType: types.TransactionTypeDebit,
+				Amount:          amountPerInstallment,
+				Date:            installmentDate,
+				Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(expenseInput.Installments) + ")",
+				Fulfilled:       false,
+
+				CreatedAt: time.Now().UTC(),
+				UpdatedAt: time.Now().UTC(),
+			}
+
+			if err := s.store.CreateTransaction(installmentTransaction); err != nil {
+				respondWithError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			if i == 0 {
+				creditCardExpenseTransaction = installmentTransaction
+			}
+
+		}
 	}
 
 	respondWithJSON(w, http.StatusOK, creditCardExpenseTransaction)
+
 }
 
 func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*uuid.UUID, error) {
