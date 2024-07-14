@@ -11,8 +11,8 @@ import (
 
 type CreateNewCreditCardInput struct {
 	Name       string `json:"name"`
-	ClosingDay int8   `json:"closingDay"`
-	DueDay     int8   `json:"dueDay"`
+	ClosingDay int    `json:"closingDay"`
+	DueDay     int    `json:"dueDay"`
 }
 
 func (s *APIServer) handleCreateCreditCard(w http.ResponseWriter, r *http.Request) {

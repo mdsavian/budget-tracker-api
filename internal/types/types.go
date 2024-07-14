@@ -69,8 +69,8 @@ type CreditCard struct {
 	ID         uuid.UUID `json:"id"`
 	Name       string    `json:"name"`
 	Archived   bool      `json:"archived"`
-	DueDay     int8      `json:"dueDay"`
-	ClosingDay int8      `json:"closingDay"`
+	DueDay     int       `json:"dueDay"`
+	ClosingDay int       `json:"closingDay"`
 	CreatedAt  time.Time `json:"createdAt"`
 	UpdatedAt  time.Time `json:"updatedAt"`
 }
@@ -117,17 +117,19 @@ type TransactionView struct {
 }
 
 type RecurringTransaction struct {
-	ID              uuid.UUID       `json:"id"`
-	AccountID       uuid.UUID       `json:"accountId"`
-	CreditCardID    *uuid.UUID      `json:"creditCardId"`
-	CategoryID      uuid.UUID       `json:"categoryId"`
+	ID           uuid.UUID  `json:"id"`
+	AccountID    uuid.UUID  `json:"accountId"`
+	CreditCardID *uuid.UUID `json:"creditCardId"`
+	CategoryID   uuid.UUID  `json:"categoryId"`
+
 	TransactionType TransactionType `json:"transactionType"`
-	Day             int8            `json:"day"`
+	Day             int             `json:"day"`
 	Description     string          `json:"description"`
 	Amount          float32         `json:"amount"`
 	Archived        bool            `json:"archived"`
 	CreatedAt       time.Time       `json:"createdAt"`
-	UpdatedAt       time.Time       `json:"updatedAt"`
+
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type RecurringTransactionUpdate struct {
