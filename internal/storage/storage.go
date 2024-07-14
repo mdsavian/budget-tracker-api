@@ -411,9 +411,9 @@ func scanIntoCreditCard(rows *sql.Rows) (*types.CreditCard, error) {
 	err := rows.Scan(
 		&card.ID,
 		&card.Name,
+		&card.Archived,
 		&card.DueDay,
 		&card.ClosingDay,
-		&card.Archived,
 		&card.CreatedAt,
 		&card.UpdatedAt)
 
