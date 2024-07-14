@@ -9,17 +9,18 @@ import (
 	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
+type CreateCreditCardExpenseInput struct {
+	CreditCardID uuid.UUID `json:"credit_card_id"`
+	AccountID    uuid.UUID `json:"account_id"`
+	CategoryId   uuid.UUID `json:"category_id"`
+	Amount       float32   `json:"amount"`
+	Date         string    `json:"date"`
+	Description  string    `json:"description"`
+	Installments int       `json:"installments"`
+	Fixed        bool      `json:"fixed"`
+}
+
 func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http.Request) {
-	type CreateCreditCardExpenseInput struct {
-		CreditCardID uuid.UUID `json:"credit_card_id"`
-		AccountID    uuid.UUID `json:"account_id"`
-		CategoryId   uuid.UUID `json:"category_id"`
-		Amount       float32   `json:"amount"`
-		Date         string    `json:"date"`
-		Description  string    `json:"description"`
-		Installments int       `json:"installments"`
-		Fixed        bool      `json:"fixed"`
-	}
 	creditCardExpenseInput := CreateCreditCardExpenseInput{}
 	if err := json.NewDecoder(r.Body).Decode(&creditCardExpenseInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -36,68 +37,74 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
 	creditCardExpenseDate, err := time.Parse("2006-01-02", creditCardExpenseInput.Date)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	expenseDayToAdd := creditCard.DueDay - creditCardExpenseDate.Day()
+	if creditCardExpenseDate.Day() < creditCard.ClosingDay {
+		creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 0, expenseDayToAdd)
+	} else {
+		creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 1, expenseDayToAdd)
+	}
+
+	creditCardExpenseTransaction := &types.Transaction{
+		ID:           uuid.Must(uuid.NewV7()),
+		CategoryID:   creditCardExpenseInput.CategoryId,
+		AccountID:    creditCardExpenseInput.AccountID,
+		CreditCardID: &creditCardExpenseInput.CreditCardID,
+
+		TransactionType: types.TransactionTypeDebit,
+		Amount:          creditCardExpenseInput.Amount,
+		Date:            creditCardExpenseDate,
+		Description:     creditCardExpenseInput.Description,
+		Fulfilled:       false,
+
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
+	}
+
 	if creditCardExpenseInput.Fixed {
-		expenseDayToAdd := creditCard.DueDay - creditCardExpenseDate.Day()
-
-		if creditCardExpenseDate.Day() < creditCard.ClosingDay {
-			creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 0, expenseDayToAdd)
-		} else {
-			creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 1, expenseDayToAdd)
-		}
-
-		creditCardExpenseTransaction := &types.Transaction{
-			ID:           uuid.Must(uuid.NewV7()),
-			CategoryID:   creditCardExpenseInput.CategoryId,
-			AccountID:    creditCardExpenseInput.AccountID,
-			CreditCardID: &creditCardExpenseInput.CreditCardID,
-
-			TransactionType: types.TransactionTypeDebit,
-			Amount:          creditCardExpenseInput.Amount,
-			Date:            creditCardExpenseDate,
-			Description:     creditCardExpenseInput.Description,
-			Fulfilled:       false,
-
-			CreatedAt: time.Now().UTC(),
-			UpdatedAt: time.Now().UTC(),
-		}
-
-		recurringTransactionID := uuid.Must(uuid.NewV7())
-
-		err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
-			ID:           recurringTransactionID,
-			AccountID:    creditCardExpenseInput.AccountID,
-			CategoryID:   creditCardExpenseInput.CategoryId,
-			CreditCardID: &creditCardExpenseInput.CreditCardID,
-
-			TransactionType: types.TransactionTypeDebit,
-			Day:             creditCardExpenseDate.Day(),
-			Description:     creditCardExpenseInput.Description,
-			Amount:          creditCardExpenseInput.Amount,
-
-			Archived:  false,
-			CreatedAt: time.Now().UTC(),
-			UpdatedAt: time.Now().UTC(),
-		})
+		recurringTransactionID, err := s.createRecurringCreditCardExpense(creditCardExpenseInput, creditCardExpenseDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+		creditCardExpenseTransaction.RecurringTransactionID = recurringTransactionID
+	}
 
-		creditCardExpenseTransaction.RecurringTransactionID = &recurringTransactionID
-
-		if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-		}
-
-		respondWithJSON(w, http.StatusOK, creditCardExpenseTransaction)
+	if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	respondWithJSON(w, http.StatusOK, creditCardExpenseTransaction)
+}
+
+func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*uuid.UUID, error) {
+	recurringTransactionID := uuid.Must(uuid.NewV7())
+
+	err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
+		ID:              recurringTransactionID,
+		AccountID:       creditCardExpenseInput.AccountID,
+		CategoryID:      creditCardExpenseInput.CategoryId,
+		CreditCardID:    &creditCardExpenseInput.CreditCardID,
+		TransactionType: types.TransactionTypeDebit,
+		Day:             creditCardExpenseDate.Day(),
+		Description:     creditCardExpenseInput.Description,
+		Amount:          creditCardExpenseInput.Amount,
+		Archived:        false,
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &recurringTransactionID, nil
 }
 
 func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) {
