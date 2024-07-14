@@ -9,13 +9,104 @@ import (
 	"github.com/mdsavian/budget-tracker-api/internal/types"
 )
 
+func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http.Request) {
+	type CreateCreditCardExpenseInput struct {
+		CreditCardID uuid.UUID `json:"credit_card_id"`
+		AccountID    uuid.UUID `json:"account_id"`
+		CategoryId   uuid.UUID `json:"category_id"`
+		Amount       float32   `json:"amount"`
+		Date         string    `json:"date"`
+		Description  string    `json:"description"`
+		Installments int       `json:"installments"`
+		Fixed        bool      `json:"fixed"`
+	}
+	creditCardExpenseInput := CreateCreditCardExpenseInput{}
+	if err := json.NewDecoder(r.Body).Decode(&creditCardExpenseInput); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if creditCardExpenseInput.CreditCardID == uuid.Nil {
+		respondWithError(w, http.StatusBadRequest, "credit card is required")
+		return
+	}
+
+	creditCard, err := s.store.GetCreditCardByID(creditCardExpenseInput.CreditCardID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	creditCardExpenseDate, err := time.Parse("2006-01-02", creditCardExpenseInput.Date)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if creditCardExpenseInput.Fixed {
+		expenseDayToAdd := creditCard.DueDay - creditCardExpenseDate.Day()
+
+		if creditCardExpenseDate.Day() < creditCard.ClosingDay {
+			creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 0, expenseDayToAdd)
+		} else {
+			creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 1, expenseDayToAdd)
+		}
+
+		creditCardExpenseTransaction := &types.Transaction{
+			ID:           uuid.Must(uuid.NewV7()),
+			CategoryID:   creditCardExpenseInput.CategoryId,
+			AccountID:    creditCardExpenseInput.AccountID,
+			CreditCardID: &creditCardExpenseInput.CreditCardID,
+
+			TransactionType: types.TransactionTypeDebit,
+			Amount:          creditCardExpenseInput.Amount,
+			Date:            creditCardExpenseDate,
+			Description:     creditCardExpenseInput.Description,
+			Fulfilled:       false,
+
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		}
+
+		recurringTransactionID := uuid.Must(uuid.NewV7())
+
+		err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
+			ID:           recurringTransactionID,
+			AccountID:    creditCardExpenseInput.AccountID,
+			CategoryID:   creditCardExpenseInput.CategoryId,
+			CreditCardID: &creditCardExpenseInput.CreditCardID,
+
+			TransactionType: types.TransactionTypeDebit,
+			Day:             creditCardExpenseDate.Day(),
+			Description:     creditCardExpenseInput.Description,
+			Amount:          creditCardExpenseInput.Amount,
+
+			Archived:  false,
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		})
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		creditCardExpenseTransaction.RecurringTransactionID = &recurringTransactionID
+
+		if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+		}
+
+		respondWithJSON(w, http.StatusOK, creditCardExpenseTransaction)
+		return
+	}
+}
+
 func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) {
 	type CreateExpenseInput struct {
+		CategoryId  uuid.UUID `json:"category_id"`
+		AccountID   uuid.UUID `json:"account_id"`
 		Amount      float32   `json:"amount"`
 		Date        string    `json:"date"`
 		Description string    `json:"description"`
-		CategoryId  uuid.UUID `json:"category_id"`
-		AccountID   uuid.UUID `json:"account_id"`
 		Fulfilled   bool      `json:"fulfilled"`
 		Fixed       bool      `json:"fixed"`
 	}
@@ -52,7 +143,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 			AccountID:       expenseInput.AccountID,
 			CategoryID:      expenseInput.CategoryId,
 			TransactionType: types.TransactionTypeDebit,
-			Day:             int8(expenseDate.Day()),
+			Day:             expenseDate.Day(),
 			Description:     expenseInput.Description,
 			Amount:          expenseInput.Amount,
 			Archived:        false,
