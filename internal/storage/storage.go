@@ -3,6 +3,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -139,7 +140,7 @@ func (s *PostgresStore) ArchiveRecurringTransaction(recurringTransactionID uuid.
 	return nil
 }
 
-func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransactionUpdate) error {
+func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransaction) error {
 	query := `UPDATE recurring_transaction SET 
 		account_id = COALESCE($1, account_id),
 		creditcard_id = COALESCE($2, creditcard_id),
@@ -150,6 +151,7 @@ func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.U
 		amount = COALESCE($7, amount),
 		updated_at = $9
 		WHERE id = $10`
+	log.Println("eaeeaeae", update)
 
 	conn, err := s.db.Query(query,
 		update.AccountID,
@@ -162,12 +164,48 @@ func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.U
 		time.Now(),
 		recurringTransactionID)
 	if err != nil {
+		log.Println("deu erro", err)
 		defer conn.Close()
 		return err
 	}
 
 	defer conn.Close()
 	return nil
+}
+
+func (s *PostgresStore) GetRecurringTransactionByID(id uuid.UUID) (*types.RecurringTransaction, error) {
+	query := "select * from recurring_transaction where id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		defer rows.Close()
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		return scanIntoRecurringTransaction(rows)
+	}
+
+	return nil, fmt.Errorf("recurring transaction %v not found", id)
+}
+
+func scanIntoRecurringTransaction(rows *sql.Rows) (*types.RecurringTransaction, error) {
+	recurringTransaction := &types.RecurringTransaction{}
+	err := rows.Scan(
+		&recurringTransaction.ID,
+		&recurringTransaction.AccountID,
+		&recurringTransaction.CreditCardID,
+		&recurringTransaction.CategoryID,
+		&recurringTransaction.TransactionType,
+		&recurringTransaction.Day,
+		&recurringTransaction.Description,
+		&recurringTransaction.Amount,
+		&recurringTransaction.Archived,
+		&recurringTransaction.CreatedAt,
+		&recurringTransaction.UpdatedAt)
+
+	return recurringTransaction, err
+
 }
 
 func (s *PostgresStore) createTransactionTable() error {
@@ -224,6 +262,55 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 
 	defer conn.Close()
 	return nil
+}
+
+func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types.Transaction) error {
+	query := `UPDATE "transaction" SET 
+		account_id = COALESCE($1, account_id),
+		creditcard_id = COALESCE($2, creditcard_id),
+		category_id = COALESCE($3, category_id),
+		transaction_type = COALESCE($4, transaction_type),
+		date = COALESCE($5, date),
+		description = COALESCE($6, description),
+		amount = COALESCE($7, amount),
+		fulfilled = COALESCE($8, fulfilled),
+		updated_at = $9
+		WHERE id = $10`
+
+	conn, err := s.db.Query(query,
+		update.AccountID,
+		update.CreditCardID,
+		update.CategoryID,
+		update.TransactionType,
+		update.Date,
+		update.Description,
+		update.Amount,
+		update.Fulfilled,
+		time.Now(),
+		transactionID)
+	if err != nil {
+		defer conn.Close()
+		return err
+	}
+
+	defer conn.Close()
+	return nil
+}
+
+func (s *PostgresStore) GetTransactionByID(id uuid.UUID) (*types.Transaction, error) {
+	query := "select * from transaction where id = $1"
+	rows, err := s.db.Query(query, id)
+	if err != nil {
+		defer rows.Close()
+		return nil, err
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		return scanIntoTransaction(rows)
+	}
+
+	return nil, fmt.Errorf("transaction %v not found", id)
 }
 
 func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
@@ -314,6 +401,7 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 		&transaction.AccountID,
 		&transaction.CreditCardID,
 		&transaction.CategoryID,
+		&transaction.RecurringTransactionID,
 		&transaction.TransactionType,
 		&transaction.Date,
 		&transaction.Description,

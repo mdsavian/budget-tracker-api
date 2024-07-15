@@ -14,12 +14,15 @@ type Storage interface {
 	// Recurring Transaction
 	CreateRecurringTransaction(*types.RecurringTransaction) error
 	ArchiveRecurringTransaction(uuid.UUID) error
-	UpdateRecurringTransaction(uuid.UUID, *types.RecurringTransactionUpdate) error
+	UpdateRecurringTransaction(uuid.UUID, *types.RecurringTransaction) error
+	GetRecurringTransactionByID(uuid.UUID) (*types.RecurringTransaction, error)
 
 	// Transaction
 	CreateTransaction(*types.Transaction) error
 	GetTransaction() ([]*types.Transaction, error)
+	GetTransactionByID(uuid.UUID) (*types.Transaction, error)
 	GetTransactionsByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
+	UpdateTransaction(uuid.UUID, *types.Transaction) error
 
 	// CreditCard
 	CreateCreditCard(*types.CreditCard) error
@@ -76,6 +79,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("POST /transaction/income", s.validateSession(s.handleCreateIncome))
 	mux.HandleFunc("POST /transaction/expense", s.validateSession(s.handleCreateExpense))
 	mux.HandleFunc("POST /transaction/expense/creditcard", s.validateSession(s.handleCreateCreditCardExpense))
+	mux.HandleFunc("PUT /transaction/update", s.validateSession(s.handleUpdateTransaction))
 
 	mux.HandleFunc("POST /creditcard", s.validateSession(s.handleCreateCreditCard))
 	mux.HandleFunc("GET /creditcard", s.validateSession(s.handleGetCreditCard))

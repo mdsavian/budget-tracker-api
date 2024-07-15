@@ -131,13 +131,3 @@ type RecurringTransaction struct {
 
 	UpdatedAt time.Time `json:"updatedAt"`
 }
-
-type RecurringTransactionUpdate struct {
-	AccountID       *uuid.UUID
-	CreditCardID    *uuid.UUID
-	CategoryID      *uuid.UUID
-	TransactionType *string
-	Day             *float64
-	Description     *string
-	Amount          *float64
-}

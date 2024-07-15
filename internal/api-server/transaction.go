@@ -2,6 +2,7 @@ package apiserver
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -306,69 +307,86 @@ func (s *APIServer) handleGetTransaction(w http.ResponseWriter, r *http.Request)
 	respondWithJSON(w, http.StatusOK, transactions)
 }
 
-func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Request) {
-	type CategoryTotal struct {
-		Name  string  `json:"name"`
-		Total float64 `json:"total"`
+func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) {
+	type UpdateTransactionInput struct {
+		TransactionID uuid.UUID  `json:"transaction_id"`
+		AccountID     *uuid.UUID `json:"account_id"`
+		CreditCardID  *uuid.UUID `json:"credit_card_id"`
+		CategoryID    *uuid.UUID `json:"category_id"`
+
+		Date                       *string  `json:"date"`
+		Description                *string  `json:"description"`
+		Amount                     *float32 `json:"amount"`
+		Fulfilled                  *bool    `json:"fulfilled"`
+		UpdateRecurringTransaction *bool    `json:"update_recurring_transaction"`
 	}
 
-	type DashboardInfo struct {
-		Transactions    []*types.TransactionView `json:"transactions"`
-		TotalCredit     float64                  `json:"totalCredit"`
-		TotalDebit      float64                  `json:"totalDebit"`
-		TotalCreditCard float64                  `json:"totalCreditCard"`
-		CategoryTotals  []CategoryTotal          `json:"categoryTotals"`
-		Accounts        []*types.Account         `json:"accounts"`
+	updateInput := UpdateTransactionInput{}
+	if err := json.NewDecoder(r.Body).Decode(&updateInput); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
-	now := time.Now().AddDate(0, -3, 0)
-	firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	lastDay := firstDay.AddDate(0, 1, -1)
-
-	transactions, err := s.store.GetTransactionsByDate(firstDay, lastDay)
-
+	transaction, err := s.store.GetTransactionByID(updateInput.TransactionID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	var totalCredit float64 = 0
-	var totalDebit float64 = 0
-	var totalCreditCard float64 = 0
-	var categoryMap = map[string]float64{}
-
-	for _, transaction := range transactions {
-		if transaction.TransactionType == types.TransactionTypeCredit {
-			totalCredit += transaction.Amount
-		} else if transaction.TransactionType == types.TransactionTypeDebit {
-			totalDebit += transaction.Amount
-			categoryMap[transaction.Category] += transaction.Amount
+	if updateInput.AccountID != nil {
+		transaction.AccountID = *updateInput.AccountID
+	}
+	if updateInput.CreditCardID != nil {
+		transaction.CreditCardID = updateInput.CreditCardID
+	}
+	if updateInput.CategoryID != nil {
+		transaction.CategoryID = *updateInput.CategoryID
+	}
+	if updateInput.Date != nil {
+		date, err := time.Parse("2006-01-02", *updateInput.Date)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
 		}
-
-		if transaction.CreditCardID != nil {
-			totalCreditCard += transaction.Amount
-		}
+		transaction.Date = date
+	}
+	if updateInput.Description != nil {
+		transaction.Description = *updateInput.Description
+	}
+	if updateInput.Amount != nil {
+		transaction.Amount = *updateInput.Amount
+	}
+	if updateInput.Fulfilled != nil {
+		transaction.Fulfilled = *updateInput.Fulfilled
 	}
 
-	accounts, err := s.store.GetAccounts()
-	if err != nil {
-		respondWithJSON(w, http.StatusBadRequest, err.Error())
+	if err := s.store.UpdateTransaction(updateInput.TransactionID, transaction); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	var categoryTotals []CategoryTotal
-	for category, total := range categoryMap {
-		categoryTotals = append(categoryTotals, CategoryTotal{Name: category, Total: total})
+	if updateInput.UpdateRecurringTransaction != nil && *updateInput.UpdateRecurringTransaction {
+		if transaction.RecurringTransactionID != nil {
+			recurringTransaction, err := s.store.GetRecurringTransactionByID(*transaction.RecurringTransactionID)
+			if err != nil {
+				respondWithError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			recurringTransaction.AccountID = transaction.AccountID
+			recurringTransaction.CategoryID = transaction.CategoryID
+			recurringTransaction.CreditCardID = transaction.CreditCardID
+			recurringTransaction.Day = transaction.Date.Day()
+			recurringTransaction.Description = transaction.Description
+			recurringTransaction.Amount = transaction.Amount
+
+			log.Println("entrei 12121221")
+			if err := s.store.UpdateRecurringTransaction(*transaction.RecurringTransactionID, recurringTransaction); err != nil {
+				respondWithError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+		}
 	}
 
-	dashboardInfo := DashboardInfo{
-		Transactions:    transactions,
-		TotalCredit:     totalCredit,
-		TotalDebit:      totalDebit,
-		TotalCreditCard: totalCreditCard,
-		CategoryTotals:  categoryTotals,
-		Accounts:        accounts,
-	}
-
-	respondWithJSON(w, http.StatusOK, dashboardInfo)
+	respondWithJSON(w, http.StatusOK, transaction)
 }
