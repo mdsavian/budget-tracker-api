@@ -57,76 +57,97 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		creditCardExpenseDate = creditCardExpenseDate.AddDate(0, 1, expenseDayToAdd)
 	}
 
-	creditCardExpenseTransaction := &types.Transaction{
-		ID:           uuid.Must(uuid.NewV7()),
-		CategoryID:   expenseInput.CategoryId,
-		AccountID:    expenseInput.AccountID,
-		CreditCardID: &expenseInput.CreditCardID,
+	if expenseInput.Fixed {
+		creditCardRecurringTransaction, err := s.createRecurringCreditCardExpense(expenseInput, creditCardExpenseDate)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, creditCardRecurringTransaction)
+		return
+	}
 
+	if expenseInput.Installments > 0 {
+		firstInstallmentTransaction, err := s.createCreditCardExpenseInstallments(expenseInput, creditCardExpenseDate)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		respondWithJSON(w, http.StatusOK, firstInstallmentTransaction)
+		return
+	}
+
+	transaction := &types.Transaction{
+		ID:              uuid.Must(uuid.NewV7()),
+		CategoryID:      expenseInput.CategoryId,
+		AccountID:       expenseInput.AccountID,
+		CreditCardID:    &expenseInput.CreditCardID,
 		TransactionType: types.TransactionTypeDebit,
 		Amount:          expenseInput.Amount,
 		Date:            creditCardExpenseDate,
 		Description:     expenseInput.Description,
 		Fulfilled:       false,
-
-		CreatedAt: time.Now().UTC(),
-		UpdatedAt: time.Now().UTC(),
+		CreatedAt:       time.Now().UTC(),
+		UpdatedAt:       time.Now().UTC(),
 	}
 
-	if expenseInput.Fixed {
-		recurringTransactionID, err := s.createRecurringCreditCardExpense(expenseInput, creditCardExpenseDate)
-		if err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		creditCardExpenseTransaction.RecurringTransactionID = recurringTransactionID
-
-		if err := s.store.CreateTransaction(creditCardExpenseTransaction); err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
+	if err := s.store.CreateTransaction(transaction); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
-	if expenseInput.Installments > 0 {
-		amountPerInstallment := expenseInput.Amount / float32(expenseInput.Installments)
-
-		for i := 0; i < expenseInput.Installments; i++ {
-			installmentDate := creditCardExpenseDate.AddDate(0, i, 0)
-
-			installmentTransaction := &types.Transaction{
-				ID:           uuid.Must(uuid.NewV7()),
-				CategoryID:   expenseInput.CategoryId,
-				AccountID:    expenseInput.AccountID,
-				CreditCardID: &expenseInput.CreditCardID,
-
-				TransactionType: types.TransactionTypeDebit,
-				Amount:          amountPerInstallment,
-				Date:            installmentDate,
-				Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(expenseInput.Installments) + ")",
-				Fulfilled:       false,
-
-				CreatedAt: time.Now().UTC(),
-				UpdatedAt: time.Now().UTC(),
-			}
-
-			if err := s.store.CreateTransaction(installmentTransaction); err != nil {
-				respondWithError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-
-			if i == 0 {
-				creditCardExpenseTransaction = installmentTransaction
-			}
-
-		}
-	}
-
-	respondWithJSON(w, http.StatusOK, creditCardExpenseTransaction)
-
+	respondWithJSON(w, http.StatusOK, transaction)
 }
 
-func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*uuid.UUID, error) {
+func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
+	amountPerInstallment := expenseInput.Amount / float32(expenseInput.Installments)
+	var firstInstallmentTransaction *types.Transaction
+
+	for i := 0; i < expenseInput.Installments; i++ {
+		installmentDate := creditCardExpenseDate.AddDate(0, i, 0)
+
+		installmentTransaction := &types.Transaction{
+			ID:              uuid.Must(uuid.NewV7()),
+			CategoryID:      expenseInput.CategoryId,
+			AccountID:       expenseInput.AccountID,
+			CreditCardID:    &expenseInput.CreditCardID,
+			TransactionType: types.TransactionTypeDebit,
+			Amount:          amountPerInstallment,
+			Date:            installmentDate,
+			Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(expenseInput.Installments) + ")",
+			Fulfilled:       false,
+			CreatedAt:       time.Now().UTC(),
+			UpdatedAt:       time.Now().UTC(),
+		}
+
+		if err := s.store.CreateTransaction(installmentTransaction); err != nil {
+			return nil, err
+		}
+
+		if i == 0 {
+			firstInstallmentTransaction = installmentTransaction
+		}
+	}
+	return firstInstallmentTransaction, nil
+}
+
+func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
 	recurringTransactionID := uuid.Must(uuid.NewV7())
+
+	creditCardRecurringTransaction := &types.Transaction{
+		ID:                     uuid.Must(uuid.NewV7()),
+		CategoryID:             creditCardExpenseInput.CategoryId,
+		AccountID:              creditCardExpenseInput.AccountID,
+		CreditCardID:           &creditCardExpenseInput.CreditCardID,
+		RecurringTransactionID: &recurringTransactionID,
+		TransactionType:        types.TransactionTypeDebit,
+		Amount:                 creditCardExpenseInput.Amount,
+		Date:                   creditCardExpenseDate,
+		Description:            creditCardExpenseInput.Description,
+		Fulfilled:              false,
+		CreatedAt:              time.Now().UTC(),
+		UpdatedAt:              time.Now().UTC(),
+	}
 
 	err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
 		ID:              recurringTransactionID,
@@ -145,7 +166,11 @@ func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput Crea
 		return nil, err
 	}
 
-	return &recurringTransactionID, nil
+	if err := s.store.CreateTransaction(creditCardRecurringTransaction); err != nil {
+		return nil, err
+	}
+
+	return creditCardRecurringTransaction, nil
 }
 
 func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) {
