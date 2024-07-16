@@ -380,3 +380,37 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 
 	respondWithJSON(w, http.StatusOK, transaction)
 }
+
+func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.Request) {
+	uTransactionID, err := getAndParseIDFromRequest(r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	transaction, err := s.store.GetTransactionByID(uTransactionID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if transaction.Fulfilled {
+		respondWithError(w, http.StatusBadRequest, "transaction already fulfilled")
+		return
+	}
+
+	transaction.Fulfilled = true
+	err = s.store.UpdateTransaction(uTransactionID, transaction)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	err = s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transaction.TransactionType)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, transaction)
+}
