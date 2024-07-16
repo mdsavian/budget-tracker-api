@@ -297,16 +297,6 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, incomeTransaction)
 }
 
-func (s *APIServer) handleGetTransaction(w http.ResponseWriter, r *http.Request) {
-	transactions, err := s.store.GetTransaction()
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	respondWithJSON(w, http.StatusOK, transactions)
-}
-
 func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	type UpdateTransactionInput struct {
 		TransactionID uuid.UUID  `json:"transaction_id"`

@@ -310,28 +310,6 @@ func (s *PostgresStore) GetTransactionByID(id uuid.UUID) (*types.Transaction, er
 	return nil, fmt.Errorf("transaction %v not found", id)
 }
 
-func (s *PostgresStore) GetTransaction() ([]*types.Transaction, error) {
-	rows, err := s.db.Query("select * from transaction")
-	if err != nil {
-		defer rows.Close()
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	transactions := []*types.Transaction{}
-
-	for rows.Next() {
-		transaction, err := scanIntoTransaction(rows)
-		if err != nil {
-			return nil, err
-		}
-		transactions = append(transactions, transaction)
-	}
-	return transactions, nil
-
-}
-
 func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*types.TransactionView, error) {
 	query := `select 
 					t.amount,
