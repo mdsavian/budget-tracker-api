@@ -3,7 +3,6 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -149,9 +148,8 @@ func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.U
 		day = COALESCE($5, day),
 		description = COALESCE($6, description),
 		amount = COALESCE($7, amount),
-		updated_at = $9
-		WHERE id = $10`
-	log.Println("eaeeaeae", update)
+		updated_at = $8
+		WHERE id = $9`
 
 	conn, err := s.db.Query(query,
 		update.AccountID,
@@ -164,7 +162,6 @@ func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.U
 		time.Now(),
 		recurringTransactionID)
 	if err != nil {
-		log.Println("deu erro", err)
 		defer conn.Close()
 		return err
 	}
