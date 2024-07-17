@@ -651,13 +651,11 @@ func (s *PostgresStore) DeleteSession(sessionID uuid.UUID) error {
 
 func (s *PostgresStore) UpdateSession(sessionID uuid.UUID, expiresAt time.Time) error {
 	query := `UPDATE session SET expires_at = $1 where id = $2`
-	conn, err := s.db.Query(query, expiresAt, sessionID)
+	_, err := s.db.Exec(query, expiresAt, sessionID)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -665,8 +663,11 @@ func (s *PostgresStore) GetSessionByID(id uuid.UUID) (*types.Session, error) {
 	query := "select * from session where id = $1"
 	rows, err := s.db.Query(query, id)
 	if err != nil {
+		defer rows.Close()
 		return nil, err
 	}
+
+	defer rows.Close()
 	session := &types.Session{}
 	for rows.Next() {
 		err := rows.Scan(
