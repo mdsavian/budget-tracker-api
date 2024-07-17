@@ -314,7 +314,6 @@ func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*
 	query := `select 
 					t.amount,
 					t.id,
-					t.cost_of_living,
 					t."date", 
 					t.transaction_type, 
 					t.description, 

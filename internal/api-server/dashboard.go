@@ -8,6 +8,26 @@ import (
 )
 
 func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	startDate := queryValues.Get("startDate")
+	endDate := queryValues.Get("endDate")
+
+	if startDate == "" || endDate == "" {
+		respondWithError(w, http.StatusBadRequest, "startDate and endDate are required")
+		return
+	}
+
+	startDateParsed, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "startDate is not a valid date")
+		return
+	}
+	endDateParsed, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "endDate is not a valid date")
+		return
+	}
+
 	type CategoryTotal struct {
 		Name  string  `json:"name"`
 		Total float64 `json:"total"`
@@ -22,11 +42,7 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		Accounts        []*types.Account         `json:"accounts"`
 	}
 
-	now := time.Now().AddDate(0, -3, 0)
-	firstDay := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	lastDay := firstDay.AddDate(0, 1, -1)
-
-	transactions, err := s.store.GetTransactionsByDate(firstDay, lastDay)
+	transactions, err := s.store.GetTransactionsByDate(startDateParsed, endDateParsed)
 
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
