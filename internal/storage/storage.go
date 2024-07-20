@@ -451,7 +451,7 @@ func (s *PostgresStore) GetCreditCardByName(name string) (*types.CreditCard, err
 }
 
 func (s *PostgresStore) GetCreditCard() ([]*types.CreditCard, error) {
-	rows, err := s.db.Query("select * from credit_card")
+	rows, err := s.db.Query("select * from credit_card c order by c.name")
 	if err != nil {
 		return nil, err
 	}
@@ -561,7 +561,7 @@ func (s *PostgresStore) GetCategoryByID(id uuid.UUID) (*types.Category, error) {
 }
 
 func (s *PostgresStore) GetCategory() ([]*types.Category, error) {
-	rows, err := s.db.Query("select * from category")
+	rows, err := s.db.Query("select * from category c order by c.description")
 	if err != nil {
 		return nil, err
 	}
@@ -886,7 +886,7 @@ func (s *PostgresStore) GetUniqueAccount(name string, accountType types.AccountT
 }
 
 func (s *PostgresStore) GetAccounts() ([]*types.Account, error) {
-	rows, err := s.db.Query("select * from account")
+	rows, err := s.db.Query("select * from account a order by a.name")
 	if err != nil {
 		return nil, err
 	}
