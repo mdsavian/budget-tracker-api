@@ -74,7 +74,8 @@ func readXlsx(path string, store *storage.PostgresStore) {
 		dateString := cells[3].Value
 		date, err := time.Parse("2006-01-02", dateString)
 		if err != nil {
-			log.Fatal("error parsing date ", dateString)
+			log.Print("error parsing date ", dateString)
+			date = time.Now().AddDate(0, 0, -time.Now().Day()+1)
 		}
 
 		var amount float64

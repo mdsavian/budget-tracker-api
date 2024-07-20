@@ -18,7 +18,7 @@ type CreateCreditCardExpenseInput struct {
 	Amount       string    `json:"amount"`
 	Date         string    `json:"date"`
 	Description  string    `json:"description"`
-	Installments int       `json:"installments"`
+	Installments string    `json:"installments"`
 	Fixed        bool      `json:"fixed"`
 }
 
@@ -28,13 +28,17 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	fInstallments, err := strconv.Atoi(expenseInput.Installments)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+	}
 
 	if expenseInput.CreditCardID == uuid.Nil {
 		respondWithError(w, http.StatusBadRequest, "credit card is required")
 		return
 	}
 
-	if expenseInput.Installments > 0 && expenseInput.Fixed {
+	if fInstallments > 0 && expenseInput.Fixed {
 		respondWithError(w, http.StatusBadRequest, "installments and fixed cannot be used together")
 		return
 	}
@@ -51,7 +55,7 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		return
 	}
 
-	fAmount, err := strconv.ParseFloat(*&expenseInput.Amount, 32)
+	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
@@ -75,7 +79,7 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		return
 	}
 
-	if expenseInput.Installments > 0 {
+	if fInstallments > 0 {
 		firstInstallmentTransaction, err := s.createCreditCardExpenseInstallments(expenseInput, creditCardExpenseDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
@@ -108,17 +112,21 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 }
 
 func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
-
-	fAmount, err := strconv.ParseFloat(*&expenseInput.Amount, 32)
+	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
 	if err != nil {
 		return nil, err
 	}
 	amount := float32(fAmount)
 
-	amountPerInstallment := amount / float32(expenseInput.Installments)
+	fInstallments, err := strconv.Atoi(expenseInput.Installments)
+	if err != nil {
+		return nil, err
+	}
+
+	amountPerInstallment := amount / float32(fInstallments)
 	var firstInstallmentTransaction *types.Transaction
 
-	for i := 0; i < expenseInput.Installments; i++ {
+	for i := 0; i < fInstallments; i++ {
 		installmentDate := creditCardExpenseDate.AddDate(0, i, 0)
 
 		installmentTransaction := &types.Transaction{
@@ -129,7 +137,7 @@ func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCredi
 			TransactionType: types.TransactionTypeDebit,
 			Amount:          amountPerInstallment,
 			Date:            installmentDate,
-			Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(expenseInput.Installments) + ")",
+			Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(fInstallments) + ")",
 			Fulfilled:       false,
 			CreatedAt:       time.Now().UTC(),
 			UpdatedAt:       time.Now().UTC(),
@@ -148,7 +156,7 @@ func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCredi
 
 func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
 
-	fAmount, err := strconv.ParseFloat(*&creditCardExpenseInput.Amount, 32)
+	fAmount, err := strconv.ParseFloat(creditCardExpenseInput.Amount, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -211,11 +219,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if expenseInput.CreditCardId != nil {
-		s.handleCreateCreditCardExpense(w, r)
-		return
 
-	}
 	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -300,7 +304,7 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	fAmount, err := strconv.ParseFloat(*&incomeInput.Amount, 32)
+	fAmount, err := strconv.ParseFloat(incomeInput.Amount, 32)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
