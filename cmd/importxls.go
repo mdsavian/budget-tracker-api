@@ -17,14 +17,14 @@ import (
 )
 
 type Transaction struct {
-	CreditCard      bool      `json:"creditCard"`
-	TransactionType string    `json:"transaction_type"`
-	Account         string    `json:"account"`
-	Date            time.Time `json:"date"`
-	Description     string    `json:"description"`
-	Category        string    `json:"category"`
-	Amount          float32   `json:"amount"`
-	Paid            bool      `json:"paid"`
+	CreditCard      bool
+	TransactionType string
+	Account         string
+	Date            time.Time
+	Description     string
+	Category        string
+	Amount          float32
+	FulFilled       bool
 }
 
 func ImportData(path string, store *storage.PostgresStore) {
@@ -66,25 +66,43 @@ func readXlsx(path string, store *storage.PostgresStore) {
 
 		cells := row.Cells
 
-		if cells[0].Column != "A" || len(cells) < 8 {
+		if cells[0].Column != "A" || len(cells) < 7 {
 			log.Println("ignoring row = ", row.Index)
 			continue
 		}
 
 		dateString := cells[3].Value
+		notFoundDate := false
 		date, err := time.Parse("2006-01-02", dateString)
 		if err != nil {
-			log.Print("error parsing date ", dateString)
-			date = time.Now().AddDate(0, 0, -time.Now().Day()+1)
+			notFoundDate = true
+			now := time.Now()
+			date = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			log.Print("not found date, new date: ", date)
 		}
 
-		var amount float64
-		if cells[6].Type == xlsxreader.TypeNumerical {
-			amountString := cells[6].Value
+		index := 6
+		if notFoundDate {
+			index = 5
+		}
+
+		var amount float64 = 0
+		if cells[index].Type == xlsxreader.TypeNumerical {
+			amountString := cells[index].Value
 			amount, err = strconv.ParseFloat(amountString, 32)
 			if err != nil {
 				log.Fatal("error parsing amount ", amountString)
 			}
+		}
+
+		if amount == 0 {
+			log.Println("amount is 0, ignoring row = ", row.Index)
+			continue
+		}
+
+		index = 4
+		if notFoundDate {
+			index = 3
 		}
 
 		transaction := &Transaction{
@@ -92,12 +110,11 @@ func readXlsx(path string, store *storage.PostgresStore) {
 			TransactionType: cells[1].Value,
 			Account:         cells[2].Value,
 			Date:            date,
-			Description:     cells[4].Value,
-			Category:        cells[5].Value,
+			Description:     cells[index].Value,
+			Category:        cells[index+1].Value,
 			Amount:          float32(amount),
-			Paid:            cells[7].Value == "Sim",
+			FulFilled:       cells[index+3].Value == "Sim",
 		}
-
 		transactions = append(transactions, transaction)
 	}
 
@@ -149,7 +166,7 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 			Date:            transaction.Date,
 			Description:     transaction.Description,
 			Amount:          transaction.Amount,
-			Fulfilled:       transaction.Paid,
+			Fulfilled:       transaction.FulFilled,
 			CreatedAt:       time.Now().UTC(),
 			UpdatedAt:       time.Now().UTC(),
 		}
@@ -159,7 +176,12 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 		}
 
 		store.CreateTransaction(newTransaction)
+
+		if transaction.FulFilled {
+			store.UpdateAccountBalance(account.ID, transaction.Amount, types.TransactionType(transaction.TransactionType))
+		}
 	}
+
 }
 
 func getOrCreateCategory(description string, store *storage.PostgresStore) *types.Category {
