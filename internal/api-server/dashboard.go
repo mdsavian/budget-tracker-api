@@ -34,12 +34,13 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	type DashboardInfo struct {
-		Transactions    []*types.TransactionView `json:"transactions"`
-		TotalCredit     float64                  `json:"totalCredit"`
-		TotalDebit      float64                  `json:"totalDebit"`
-		TotalCreditCard float64                  `json:"totalCreditCard"`
-		CategoryTotals  []CategoryTotal          `json:"categoryTotals"`
-		Accounts        []*types.Account         `json:"accounts"`
+		Transactions     []*types.TransactionView `json:"transactions"`
+		TotalCredit      float64                  `json:"totalCredit"`
+		TotalDebit       float64                  `json:"totalDebit"`
+		TotalDebitUnpaid float64                  `json:"totalDebitUnpaid"`
+		TotalCreditCard  float64                  `json:"totalCreditCard"`
+		CategoryTotals   []CategoryTotal          `json:"categoryTotals"`
+		Accounts         []*types.Account         `json:"accounts"`
 	}
 
 	transactions, err := s.store.GetTransactionsByDate(startDateParsed, endDateParsed)
@@ -51,6 +52,8 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 
 	var totalCredit float64 = 0
 	var totalDebit float64 = 0
+	var totalDebitUnpaid float64 = 0
+
 	var totalCreditCard float64 = 0
 	var categoryMap = map[string]float64{}
 
@@ -59,6 +62,9 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 			totalCredit += transaction.Amount
 		} else if transaction.TransactionType == types.TransactionTypeDebit {
 			totalDebit += transaction.Amount
+			if !transaction.Fulfilled {
+				totalDebitUnpaid += transaction.Amount
+			}
 			categoryMap[transaction.Category] += transaction.Amount
 		}
 
@@ -79,12 +85,13 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	dashboardInfo := DashboardInfo{
-		Transactions:    transactions,
-		TotalCredit:     totalCredit,
-		TotalDebit:      totalDebit,
-		TotalCreditCard: totalCreditCard,
-		CategoryTotals:  categoryTotals,
-		Accounts:        accounts,
+		Transactions:     transactions,
+		TotalCredit:      totalCredit,
+		TotalDebit:       totalDebit,
+		TotalCreditCard:  totalCreditCard,
+		TotalDebitUnpaid: totalDebitUnpaid,
+		CategoryTotals:   categoryTotals,
+		Accounts:         accounts,
 	}
 
 	respondWithJSON(w, http.StatusOK, dashboardInfo)
