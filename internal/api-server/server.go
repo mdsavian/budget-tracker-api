@@ -104,6 +104,7 @@ func (s *APIServer) Start() {
 		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
 		AllowCredentials: true,
 		AllowedHeaders:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 	}).Handler(mux)
 
 	log.Println("Server running on port: ", s.listenAddr)
