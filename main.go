@@ -13,10 +13,9 @@ import (
 )
 
 func main() {
-
 	env := os.Getenv("ENV")
 	if env == "" {
-		env = "dev"
+		log.Fatal("ENV is not found in the environment")
 	}
 	godotenv.Load(".env." + env + ".local")
 
