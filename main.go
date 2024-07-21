@@ -14,7 +14,11 @@ import (
 
 func main() {
 
-	godotenv.Load(".env")
+	env := os.Getenv("ENV")
+	if env == "" {
+		env = "dev"
+	}
+	godotenv.Load(".env." + env + ".local")
 
 	store, err := storage.NewPostgresStore()
 	if err != nil {
