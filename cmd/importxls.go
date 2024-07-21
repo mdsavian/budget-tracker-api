@@ -54,6 +54,7 @@ func readXlsx(path string, store *storage.PostgresStore) {
 
 	// Ensure the file reader is closed once utilised
 	defer xl.Close()
+	var lastValidDate time.Time
 
 	var transactions []*Transaction
 	// Iterate on the rows of data
@@ -76,10 +77,10 @@ func readXlsx(path string, store *storage.PostgresStore) {
 		date, err := time.Parse("2006-01-02", dateString)
 		if err != nil {
 			notFoundDate = true
-			now := time.Now()
-			date = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+			date = time.Date(lastValidDate.Year(), lastValidDate.Month(), 1, 0, 0, 0, 0, time.UTC)
 			log.Print("not found date, new date: ", date)
 		}
+		lastValidDate = date
 
 		index := 6
 		if notFoundDate {
@@ -95,14 +96,19 @@ func readXlsx(path string, store *storage.PostgresStore) {
 			}
 		}
 
-		if amount == 0 {
-			log.Println("amount is 0, ignoring row = ", row.Index)
+		if amount == 0 || amount < 0 {
+			log.Println("amount is <= 0, ignoring row = ", row.Index)
 			continue
 		}
 
 		index = 4
 		if notFoundDate {
 			index = 3
+		}
+
+		if cells[index+3].Value != "Sim" {
+			log.Println("not fulfilled, ignoring row = ", row.Index)
+			continue
 		}
 
 		transaction := &Transaction{
@@ -176,10 +182,6 @@ func persistData(transactions []*Transaction, store *storage.PostgresStore) {
 		}
 
 		store.CreateTransaction(newTransaction)
-
-		if transaction.FulFilled {
-			store.UpdateAccountBalance(account.ID, transaction.Amount, types.TransactionType(transaction.TransactionType))
-		}
 	}
 
 }

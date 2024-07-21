@@ -6,3 +6,7 @@ run: build
 
 test:
 	@go test -v ./...
+
+
+run-dev:
+	ENV='dev' air
