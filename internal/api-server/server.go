@@ -73,6 +73,7 @@ func (s *APIServer) Start() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /dashboard", s.validateSession(s.handleGetDashboardInfo))
+	mux.HandleFunc("GET /dashboard/transaction", s.validateSession(s.handleGetTransactionsByDate))
 
 	mux.HandleFunc("POST /transaction/income", s.validateSession(s.handleCreateIncome))
 	mux.HandleFunc("POST /transaction/expense", s.validateSession(s.handleCreateExpense))

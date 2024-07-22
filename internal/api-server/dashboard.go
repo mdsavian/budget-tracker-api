@@ -96,3 +96,42 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 
 	respondWithJSON(w, http.StatusOK, dashboardInfo)
 }
+
+func (s *APIServer) handleGetTransactionsByDate(w http.ResponseWriter, r *http.Request) {
+	queryValues := r.URL.Query()
+	startDate := queryValues.Get("startDate")
+	endDate := queryValues.Get("endDate")
+
+	if startDate == "" || endDate == "" {
+		respondWithError(w, http.StatusBadRequest, "startDate and endDate are required")
+		return
+	}
+
+	startDateParsed, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "startDate is not a valid date")
+		return
+	}
+	endDateParsed, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "endDate is not a valid date")
+		return
+	}
+
+	type TransactionInfo struct {
+		Transactions []*types.TransactionView `json:"transactions"`
+	}
+
+	transactions, err := s.store.GetTransactionsByDate(startDateParsed, endDateParsed)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	transactionInfo := TransactionInfo{
+		Transactions: transactions,
+	}
+
+	respondWithJSON(w, http.StatusOK, transactionInfo)
+}

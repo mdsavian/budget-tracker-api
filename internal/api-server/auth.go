@@ -91,7 +91,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Expires: newSession.ExpiresAt,
 	})
 
-	respondWithJSON(w, http.StatusOK, "Login sucessfully")
+	respondWithJSON(w, http.StatusOK, user)
 }
 
 func (s *APIServer) handleLogout(w http.ResponseWriter, r *http.Request) {
