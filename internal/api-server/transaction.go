@@ -208,24 +208,18 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 		CategoryId   uuid.UUID  `json:"categoryId"`
 		CreditCardId *uuid.UUID `json:"creditCardId"`
 		AccountID    uuid.UUID  `json:"accountId"`
-		Amount       string     `json:"amount"`
+		Amount       float32    `json:"amount"`
 		Date         string     `json:"date"`
 		Description  string     `json:"description"`
 		Fulfilled    bool       `json:"fulfilled"`
 		Fixed        bool       `json:"fixed"`
 	}
+
 	expenseInput := CreateExpenseInput{}
 	if err := json.NewDecoder(r.Body).Decode(&expenseInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	amount := float32(fAmount)
 
 	expenseDate, err := time.Parse("2006-01-02", expenseInput.Date)
 	if err != nil {
@@ -236,7 +230,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 	expenseTransaction := &types.Transaction{
 		ID:              uuid.Must(uuid.NewV7()),
 		TransactionType: types.TransactionTypeDebit,
-		Amount:          amount,
+		Amount:          expenseInput.Amount,
 		Date:            expenseDate,
 		Description:     expenseInput.Description,
 		CategoryID:      expenseInput.CategoryId,
@@ -256,7 +250,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 			TransactionType: types.TransactionTypeDebit,
 			Day:             expenseDate.Day(),
 			Description:     expenseInput.Description,
-			Amount:          amount,
+			Amount:          expenseInput.Amount,
 			Archived:        false,
 			CreatedAt:       time.Now().UTC(),
 			UpdatedAt:       time.Now().UTC(),
@@ -274,7 +268,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if expenseInput.Fulfilled {
-		err = s.store.UpdateAccountBalance(expenseInput.AccountID, amount, types.TransactionTypeDebit)
+		err = s.store.UpdateAccountBalance(expenseInput.AccountID, expenseInput.Amount, types.TransactionTypeDebit)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
