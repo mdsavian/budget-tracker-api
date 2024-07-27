@@ -10,3 +10,6 @@ test:
 
 run-dev:
 	ENV='dev' air
+
+run-prod:
+	ENV='prod' air

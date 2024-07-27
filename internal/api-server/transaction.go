@@ -15,10 +15,10 @@ type CreateCreditCardExpenseInput struct {
 	CreditCardID uuid.UUID `json:"creditCardId"`
 	AccountID    uuid.UUID `json:"accountId"`
 	CategoryId   uuid.UUID `json:"categoryId"`
-	Amount       string    `json:"amount"`
+	Amount       float32   `json:"amount"`
 	Date         string    `json:"date"`
 	Description  string    `json:"description"`
-	Installments string    `json:"installments"`
+	Installments int32     `json:"installments"`
 	Fixed        bool      `json:"fixed"`
 }
 
@@ -28,17 +28,13 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	fInstallments, err := strconv.Atoi(expenseInput.Installments)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-	}
 
 	if expenseInput.CreditCardID == uuid.Nil {
 		respondWithError(w, http.StatusBadRequest, "credit card is required")
 		return
 	}
 
-	if fInstallments > 0 && expenseInput.Fixed {
+	if expenseInput.Installments > 0 && expenseInput.Fixed {
 		respondWithError(w, http.StatusBadRequest, "installments and fixed cannot be used together")
 		return
 	}
@@ -54,13 +50,6 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	amount := float32(fAmount)
 
 	expenseDayToAdd := creditCard.DueDay - creditCardExpenseDate.Day()
 	if creditCardExpenseDate.Day() < creditCard.ClosingDay {
@@ -79,7 +68,7 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		return
 	}
 
-	if fInstallments > 0 {
+	if expenseInput.Installments > 0 {
 		firstInstallmentTransaction, err := s.createCreditCardExpenseInstallments(expenseInput, creditCardExpenseDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
@@ -95,7 +84,7 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 		AccountID:       expenseInput.AccountID,
 		CreditCardID:    &expenseInput.CreditCardID,
 		TransactionType: types.TransactionTypeDebit,
-		Amount:          amount,
+		Amount:          expenseInput.Amount,
 		Date:            creditCardExpenseDate,
 		Description:     expenseInput.Description,
 		Fulfilled:       false,
@@ -112,21 +101,10 @@ func (s *APIServer) handleCreateCreditCardExpense(w http.ResponseWriter, r *http
 }
 
 func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
-	fAmount, err := strconv.ParseFloat(expenseInput.Amount, 32)
-	if err != nil {
-		return nil, err
-	}
-	amount := float32(fAmount)
-
-	fInstallments, err := strconv.Atoi(expenseInput.Installments)
-	if err != nil {
-		return nil, err
-	}
-
-	amountPerInstallment := amount / float32(fInstallments)
+	amountPerInstallment := expenseInput.Amount / float32(expenseInput.Installments)
 	var firstInstallmentTransaction *types.Transaction
 
-	for i := 0; i < fInstallments; i++ {
+	for i := 0; i < int(expenseInput.Installments); i++ {
 		installmentDate := creditCardExpenseDate.AddDate(0, i, 0)
 
 		installmentTransaction := &types.Transaction{
@@ -137,7 +115,7 @@ func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCredi
 			TransactionType: types.TransactionTypeDebit,
 			Amount:          amountPerInstallment,
 			Date:            installmentDate,
-			Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(fInstallments) + ")",
+			Description:     expenseInput.Description + " (" + strconv.Itoa(i+1) + "/" + strconv.Itoa(int(expenseInput.Installments)) + ")",
 			Fulfilled:       false,
 			CreatedAt:       time.Now().UTC(),
 			UpdatedAt:       time.Now().UTC(),
@@ -155,13 +133,6 @@ func (s *APIServer) createCreditCardExpenseInstallments(expenseInput CreateCredi
 }
 
 func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput CreateCreditCardExpenseInput, creditCardExpenseDate time.Time) (*types.Transaction, error) {
-
-	fAmount, err := strconv.ParseFloat(creditCardExpenseInput.Amount, 32)
-	if err != nil {
-		return nil, err
-	}
-	amount := float32(fAmount)
-
 	recurringTransactionID := uuid.Must(uuid.NewV7())
 
 	creditCardRecurringTransaction := &types.Transaction{
@@ -171,7 +142,7 @@ func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput Crea
 		CreditCardID:           &creditCardExpenseInput.CreditCardID,
 		RecurringTransactionID: &recurringTransactionID,
 		TransactionType:        types.TransactionTypeDebit,
-		Amount:                 amount,
+		Amount:                 creditCardExpenseInput.Amount,
 		Date:                   creditCardExpenseDate,
 		Description:            creditCardExpenseInput.Description,
 		Fulfilled:              false,
@@ -179,7 +150,7 @@ func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput Crea
 		UpdatedAt:              time.Now().UTC(),
 	}
 
-	err = s.store.CreateRecurringTransaction(&types.RecurringTransaction{
+	err := s.store.CreateRecurringTransaction(&types.RecurringTransaction{
 		ID:              recurringTransactionID,
 		AccountID:       creditCardExpenseInput.AccountID,
 		CategoryID:      creditCardExpenseInput.CategoryId,
@@ -187,7 +158,7 @@ func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput Crea
 		TransactionType: types.TransactionTypeDebit,
 		Day:             creditCardExpenseDate.Day(),
 		Description:     creditCardExpenseInput.Description,
-		Amount:          amount,
+		Amount:          creditCardExpenseInput.Amount,
 		Archived:        false,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
@@ -279,7 +250,7 @@ func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) 
 
 func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 	type CreateIncomeInput struct {
-		Amount      string    `json:"amount"`
+		Amount      float32   `json:"amount"`
 		Date        string    `json:"date"`
 		Description string    `json:"description"`
 		CategoryId  uuid.UUID `json:"categoryId"`
@@ -298,17 +269,11 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	fAmount, err := strconv.ParseFloat(incomeInput.Amount, 32)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	amount := float32(fAmount)
 
 	incomeTransaction := &types.Transaction{
 		ID:              uuid.Must(uuid.NewV7()),
 		TransactionType: types.TransactionTypeCredit,
-		Amount:          amount,
+		Amount:          incomeInput.Amount,
 		Date:            incomeDate,
 		Description:     incomeInput.Description,
 		CategoryID:      incomeInput.CategoryId,
@@ -324,7 +289,7 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if incomeInput.Fulfilled {
-		err = s.store.UpdateAccountBalance(incomeInput.AccountID, amount, types.TransactionTypeCredit)
+		err = s.store.UpdateAccountBalance(incomeInput.AccountID, incomeInput.Amount, types.TransactionTypeCredit)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 			return
