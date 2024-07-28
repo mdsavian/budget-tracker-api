@@ -43,7 +43,7 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		Accounts         []*types.Account         `json:"accounts"`
 	}
 
-	transactions, err := s.store.GetTransactionsByDate(startDateParsed, endDateParsed)
+	transactions, err := s.store.GetTransactionsWithRecurringByDate(startDateParsed, endDateParsed)
 
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
@@ -122,7 +122,7 @@ func (s *APIServer) handleGetTransactionsByDate(w http.ResponseWriter, r *http.R
 		Transactions []*types.TransactionView `json:"transactions"`
 	}
 
-	transactions, err := s.store.GetTransactionsByDate(startDateParsed, endDateParsed)
+	transactions, err := s.store.GetTransactionsWithRecurringByDate(startDateParsed, endDateParsed)
 
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())

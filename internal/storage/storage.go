@@ -311,27 +311,85 @@ func (s *PostgresStore) GetTransactionByID(id uuid.UUID) (*types.Transaction, er
 	return nil, fmt.Errorf("transaction %v not found", id)
 }
 
-func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*types.TransactionView, error) {
-	query := `select 
-					t.amount,
-					t.id,
-					t."date", 
-					t.transaction_type, 
-					t.description, 
-					t.fulfilled, 
-					c.id as CreditCardID, 
-					c."name" as CreditCard, 
-					c2.description as Category, 
-					a."name" as Account
-				from "transaction" t 
-				left join credit_card c on c.id = t.creditcard_id 
-				left join category c2 on c2.id = t.category_id 
-				left join account a on a.id = t.account_id
-				where t.date between $1 and $2 
-				order by t.date`
+func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate time.Time) ([]*types.TransactionView, error) {
+	query := `
+	WITH RECURRING_DATES AS (
+		SELECT 
+			id AS recurring_transaction_id,
+			account_id,
+			creditcard_id,
+			category_id,
+			transaction_type,
+			description,
+			amount,
+			generate_series(
+				DATE_TRUNC('month', $1::date) + (day - 1) * INTERVAL '1 day',
+				DATE_TRUNC('month', $2::date) + (day - 1) * INTERVAL '1 day',
+				'1 month'
+			)::date AS occurrence_date
+		FROM 
+			recurring_transaction
+		WHERE 
+			archived = false 			
+	)
+	SELECT 
+		t.id, 
+		t.account_id, 
+		a."name" AS Account,
+		t.creditcard_id,
+		c."name" AS CreditCard,
+		t.category_id,
+		c2.description AS Category,
+		t.recurring_transaction_id,
+		t.transaction_type,
+		t.date, 
+		t.description, 
+		t.amount, 
+		t.fulfilled
+	FROM 
+		transaction t
+	LEFT JOIN 
+		credit_card c ON c.id = t.creditcard_id 
+	LEFT JOIN 
+		category c2 ON c2.id = t.category_id 
+	LEFT JOIN 
+		account a ON a.id = t.account_id
+	WHERE 
+		t.date BETWEEN $1 AND $2
+	UNION ALL
+	SELECT 
+		NULL AS id,
+		r.account_id, 
+		a."name" AS Account,
+		r.creditcard_id,
+		c."name" AS CreditCard,
+		r.category_id,
+		c2.description AS Category,
+		r.recurring_transaction_id,
+		r.transaction_type,
+		r.occurrence_date AS date,
+		r.description, 
+		r.amount, 
+		false AS fulfilled
+	FROM 
+		RECURRING_DATES r
+	LEFT JOIN 
+		transaction t 
+	ON 
+		t.date = r.occurrence_date 
+		AND t.recurring_transaction_id = r.recurring_transaction_id
+	LEFT JOIN 
+		credit_card c ON c.id = r.creditcard_id 
+	LEFT JOIN 
+		category c2 ON c2.id = r.category_id 
+	LEFT JOIN 
+		account a ON a.id = r.account_id
+	WHERE 
+		t.id IS NULL
+	ORDER BY 
+		date;`
 
 	rows, err := s.db.Query(query, startDate, endDate)
-
 	if err != nil {
 		defer rows.Close()
 		return nil, err
@@ -347,25 +405,26 @@ func (s *PostgresStore) GetTransactionsByDate(startDate, endDate time.Time) ([]*
 		}
 		transactions = append(transactions, transaction)
 	}
-
 	return transactions, nil
 }
 
 func scanIntoTransactionView(rows *sql.Rows) (*types.TransactionView, error) {
 	transaction := &types.TransactionView{}
 	err := rows.Scan(
-		&transaction.Amount,
 		&transaction.ID,
-		&transaction.Date,
-		&transaction.TransactionType,
-		&transaction.Description,
-		&transaction.Fulfilled,
+		&transaction.AccountID,
+		&transaction.Account,
 		&transaction.CreditCardID,
 		&transaction.CreditCard,
+		&transaction.CategoryID,
 		&transaction.Category,
-		&transaction.Account,
+		&transaction.RecurringTransactionID,
+		&transaction.TransactionType,
+		&transaction.Date,
+		&transaction.Description,
+		&transaction.Amount,
+		&transaction.Fulfilled,
 	)
-
 	return transaction, err
 }
 

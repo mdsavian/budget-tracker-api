@@ -20,7 +20,7 @@ type Storage interface {
 	// Transaction
 	CreateTransaction(*types.Transaction) error
 	GetTransactionByID(uuid.UUID) (*types.Transaction, error)
-	GetTransactionsByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
+	GetTransactionsWithRecurringByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
 	UpdateTransaction(uuid.UUID, *types.Transaction) error
 
 	// CreditCard

@@ -2,7 +2,6 @@ package apiserver
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -379,7 +378,6 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 			recurringTransaction.Description = transaction.Description
 			recurringTransaction.Amount = transaction.Amount
 
-			log.Println("entrei 12121221")
 			if err := s.store.UpdateRecurringTransaction(*transaction.RecurringTransactionID, recurringTransaction); err != nil {
 				respondWithError(w, http.StatusBadRequest, err.Error())
 				return

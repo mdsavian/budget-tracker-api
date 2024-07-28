@@ -104,16 +104,19 @@ type Transaction struct {
 }
 
 type TransactionView struct {
-	ID              uuid.UUID       `json:"id"`
-	Account         string          `json:"account"`
-	CreditCardID    *uuid.UUID      `json:"creditCardId"`
-	CreditCard      *string         `json:"creditCard"`
-	Category        string          `json:"category"`
-	TransactionType TransactionType `json:"transactionType"`
-	Date            time.Time       `json:"date"`
-	Description     string          `json:"description"`
-	Amount          float64         `json:"amount"`
-	Fulfilled       bool            `json:"paid"`
+	ID                     uuid.UUID       `json:"id"`
+	AccountID              uuid.UUID       `json:"accountId"`
+	Account                string          `json:"account"`
+	CreditCardID           *uuid.UUID      `json:"creditCardId"`
+	CreditCard             *string         `json:"creditCard"`
+	CategoryID             uuid.UUID       `json:"categoryId"`
+	Category               string          `json:"category"`
+	RecurringTransactionID *uuid.UUID      `json:"recurringTransactionId"`
+	TransactionType        TransactionType `json:"transactionType"`
+	Date                   time.Time       `json:"date"`
+	Description            string          `json:"description"`
+	Amount                 float64         `json:"amount"`
+	Fulfilled              bool            `json:"paid"`
 }
 
 type RecurringTransaction struct {
