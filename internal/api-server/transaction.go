@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mdsavian/budget-tracker-api/internal/types"
+	"github.com/samber/lo"
 )
 
 type CreateCreditCardExpenseInput struct {
@@ -389,31 +390,74 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.Request) {
-	uTransactionID, err := getAndParseIDFromRequest(r)
-	if err != nil {
+	type EffectuateTransactionInput struct {
+		TransactionID          uuid.UUID `json:"transactionId"`
+		RecurringTransactionID uuid.UUID `json:"recurringTransactionId"`
+		Amount                 float32   `json:"amount"`
+	}
+
+	effectuateTransactionInout := &EffectuateTransactionInput{}
+	if err := json.NewDecoder(r.Body).Decode(&effectuateTransactionInout); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	transaction, err := s.store.GetTransactionByID(uTransactionID)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+	if effectuateTransactionInout.TransactionID == uuid.Nil && effectuateTransactionInout.RecurringTransactionID == uuid.Nil {
+		respondWithError(w, http.StatusBadRequest, "transactionId or recurringTransactionId is required")
 		return
 	}
 
-	if transaction.Fulfilled {
-		respondWithError(w, http.StatusBadRequest, "transaction already fulfilled")
-		return
+	transaction := &types.Transaction{}
+
+	if effectuateTransactionInout.TransactionID != uuid.Nil {
+		transaction, err := s.store.GetTransactionByID(effectuateTransactionInout.TransactionID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		if transaction.Fulfilled {
+			respondWithError(w, http.StatusBadRequest, "transaction already fulfilled")
+			return
+		}
+
+		transaction.Fulfilled = true
+		transaction.Date = time.Now()
+		err = s.store.UpdateTransaction(effectuateTransactionInout.TransactionID, transaction)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	} else if effectuateTransactionInout.RecurringTransactionID != uuid.Nil {
+		recurringTransaction, err := s.store.GetRecurringTransactionByID(effectuateTransactionInout.RecurringTransactionID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		transaction = &types.Transaction{
+			ID:                     uuid.Must(uuid.NewV7()),
+			RecurringTransactionID: lo.ToPtr(recurringTransaction.ID),
+			CategoryID:             recurringTransaction.CategoryID,
+			AccountID:              recurringTransaction.AccountID,
+			CreditCardID:           recurringTransaction.CreditCardID,
+			TransactionType:        types.TransactionTypeDebit,
+			Amount:                 effectuateTransactionInout.Amount,
+			Date:                   time.Now().UTC(),
+			Description:            recurringTransaction.Description,
+			Fulfilled:              true,
+			CreatedAt:              time.Now().UTC(),
+			UpdatedAt:              time.Now().UTC(),
+		}
+
+		err = s.store.CreateTransaction(transaction)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
-	transaction.Fulfilled = true
-	err = s.store.UpdateTransaction(uTransactionID, transaction)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	err = s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transaction.TransactionType)
+	err := s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transaction.TransactionType)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
