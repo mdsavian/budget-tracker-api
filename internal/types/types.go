@@ -21,7 +21,7 @@ type Session struct {
 }
 
 func (s Session) IsExpired() bool {
-	return s.ExpiresAt.Before(time.Now())
+	return s.ExpiresAt.Before(time.Now().UTC())
 }
 
 type User struct {

@@ -159,7 +159,7 @@ func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.U
 		update.Day,
 		update.Description,
 		update.Amount,
-		time.Now(),
+		time.Now().UTC(),
 		recurringTransactionID)
 	if err != nil {
 		defer conn.Close()
@@ -284,7 +284,7 @@ func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types
 		update.Description,
 		update.Amount,
 		update.Fulfilled,
-		time.Now(),
+		time.Now().UTC(),
 		transactionID)
 	if err != nil {
 		defer conn.Close()

@@ -75,9 +75,9 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	newSession := &types.Session{
 		ID:        uuid.New(),
 		UserId:    user.ID,
-		ExpiresAt: time.Now().Add(time.Hour * 8),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ExpiresAt: time.Now().Add(time.Hour * 8).UTC(),
+		CreatedAt: time.Now().UTC(),
+		UpdatedAt: time.Now().UTC(),
 	}
 
 	if err := s.store.CreateSession(newSession); err != nil {
