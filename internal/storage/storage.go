@@ -139,34 +139,30 @@ func (s *PostgresStore) ArchiveRecurringTransaction(recurringTransactionID uuid.
 	return nil
 }
 
-func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransaction) error {
+func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransactionToUpdate) error {
 	query := `UPDATE recurring_transaction SET 
 		account_id = COALESCE($1, account_id),
 		creditcard_id = COALESCE($2, creditcard_id),
 		category_id = COALESCE($3, category_id),
-		transaction_type = COALESCE($4, transaction_type),
-		day = COALESCE($5, day),
-		description = COALESCE($6, description),
-		amount = COALESCE($7, amount),
-		updated_at = $8
-		WHERE id = $9`
+		day = COALESCE($4, day),
+		description = COALESCE($5, description),
+		amount = COALESCE($6, amount),
+		updated_at = $7
+		WHERE id = $8`
 
-	conn, err := s.db.Query(query,
+	_, err := s.db.Exec(query,
 		update.AccountID,
 		update.CreditCardID,
 		update.CategoryID,
-		update.TransactionType,
 		update.Day,
 		update.Description,
 		update.Amount,
 		time.Now().UTC(),
 		recurringTransactionID)
 	if err != nil {
-		defer conn.Close()
 		return err
 	}
 
-	defer conn.Close()
 	return nil
 }
 
@@ -262,28 +258,34 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 	return nil
 }
 
-func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types.Transaction) error {
+func (s *PostgresStore) FulfillTransaction(transactionID uuid.UUID) error {
+	query := `UPDATE "transaction" 
+		SET fulfilled = $1,
+		date = $3,
+		updated_at = $2 
+		where id = $4`
+	_, err := s.db.Exec(query, true, time.Now().UTC(), time.Now().UTC(), transactionID)
+	return err
+}
+
+func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types.TransactionToUpdate) error {
 	query := `UPDATE "transaction" SET 
 		account_id = COALESCE($1, account_id),
 		creditcard_id = COALESCE($2, creditcard_id),
 		category_id = COALESCE($3, category_id),
-		transaction_type = COALESCE($4, transaction_type),
-		date = COALESCE($5, date),
-		description = COALESCE($6, description),
-		amount = COALESCE($7, amount),
-		fulfilled = COALESCE($8, fulfilled),
-		updated_at = $9
-		WHERE id = $10`
+		date = COALESCE($4, date),
+		description = COALESCE($5, description),
+		amount = COALESCE($6, amount),
+		updated_at = $7
+		WHERE id = $8`
 
 	conn, err := s.db.Query(query,
 		update.AccountID,
 		update.CreditCardID,
 		update.CategoryID,
-		update.TransactionType,
 		update.Date,
 		update.Description,
 		update.Amount,
-		update.Fulfilled,
 		time.Now().UTC(),
 		transactionID)
 	if err != nil {
@@ -461,11 +463,7 @@ func (s *PostgresStore) createCreditCardTable() error {
 				PRIMARY KEY ("id")
 	)`
 	_, err := s.db.Exec(query)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *PostgresStore) CreateCreditCard(creditCard *types.CreditCard) error {

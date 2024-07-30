@@ -134,3 +134,23 @@ type RecurringTransaction struct {
 
 	UpdatedAt time.Time `json:"updatedAt"`
 }
+
+type RecurringTransactionToUpdate struct {
+	AccountID    *uuid.UUID `json:"accountId"`
+	CreditCardID *uuid.UUID `json:"creditCardId"`
+	CategoryID   *uuid.UUID `json:"categoryId"`
+	Day          *int       `json:"day"`
+	Description  *string    `json:"description"`
+	Amount       *float32   `json:"amount"`
+	Archived     *bool      `json:"archived"`
+}
+
+type TransactionToUpdate struct {
+	AccountID              *uuid.UUID `json:"accountId"`
+	CreditCardID           *uuid.UUID `json:"creditCardId"`
+	CategoryID             *uuid.UUID `json:"categoryId"`
+	RecurringTransactionID *uuid.UUID `json:"recurringTransactionId"`
+	Date                   *time.Time `json:"date"`
+	Description            *string    `json:"description"`
+	Amount                 *float32   `json:"amount"`
+}

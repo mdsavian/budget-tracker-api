@@ -299,96 +299,6 @@ func (s *APIServer) handleCreateIncome(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, incomeTransaction)
 }
 
-func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) {
-	type UpdateTransactionInput struct {
-		TransactionID uuid.UUID  `json:"transactionId"`
-		AccountID     *uuid.UUID `json:"accountId"`
-		CreditCardID  *uuid.UUID `json:"creditCardId"`
-		CategoryID    *uuid.UUID `json:"categoryId"`
-
-		Date                       *string `json:"date"`
-		Description                *string `json:"description"`
-		Amount                     *string `json:"amount"`
-		Fulfilled                  *bool   `json:"fulfilled"`
-		UpdateRecurringTransaction *bool   `json:"updateRecurringTransaction"`
-	}
-
-	updateInput := UpdateTransactionInput{}
-	if err := json.NewDecoder(r.Body).Decode(&updateInput); err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	fAmount, err := strconv.ParseFloat(*updateInput.Amount, 32)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	amount := float32(fAmount)
-
-	transaction, err := s.store.GetTransactionByID(updateInput.TransactionID)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if updateInput.AccountID != nil {
-		transaction.AccountID = *updateInput.AccountID
-	}
-	if updateInput.CreditCardID != nil {
-		transaction.CreditCardID = updateInput.CreditCardID
-	}
-	if updateInput.CategoryID != nil {
-		transaction.CategoryID = *updateInput.CategoryID
-	}
-	if updateInput.Date != nil {
-		date, err := time.Parse("2006-01-02", *updateInput.Date)
-		if err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		transaction.Date = date
-	}
-	if updateInput.Description != nil {
-		transaction.Description = *updateInput.Description
-	}
-	if updateInput.Amount != nil {
-		transaction.Amount = amount
-	}
-	if updateInput.Fulfilled != nil {
-		transaction.Fulfilled = *updateInput.Fulfilled
-	}
-
-	if err := s.store.UpdateTransaction(updateInput.TransactionID, transaction); err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if updateInput.UpdateRecurringTransaction != nil && *updateInput.UpdateRecurringTransaction {
-		if transaction.RecurringTransactionID != nil {
-			recurringTransaction, err := s.store.GetRecurringTransactionByID(*transaction.RecurringTransactionID)
-			if err != nil {
-				respondWithError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-
-			recurringTransaction.AccountID = transaction.AccountID
-			recurringTransaction.CategoryID = transaction.CategoryID
-			recurringTransaction.CreditCardID = transaction.CreditCardID
-			recurringTransaction.Day = transaction.Date.Day()
-			recurringTransaction.Description = transaction.Description
-			recurringTransaction.Amount = transaction.Amount
-
-			if err := s.store.UpdateRecurringTransaction(*transaction.RecurringTransactionID, recurringTransaction); err != nil {
-				respondWithError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-		}
-	}
-
-	respondWithJSON(w, http.StatusOK, transaction)
-}
-
 func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.Request) {
 	type EffectuateTransactionInput struct {
 		TransactionID          uuid.UUID `json:"transactionId"`
@@ -408,7 +318,6 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 	}
 
 	transaction := &types.Transaction{}
-
 	if effectuateTransactionInout.TransactionID != uuid.Nil {
 		transaction, err := s.store.GetTransactionByID(effectuateTransactionInout.TransactionID)
 		if err != nil {
@@ -421,9 +330,7 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 			return
 		}
 
-		transaction.Fulfilled = true
-		transaction.Date = time.Now()
-		err = s.store.UpdateTransaction(effectuateTransactionInout.TransactionID, transaction)
+		err = s.store.FulfillTransaction(effectuateTransactionInout.TransactionID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -464,4 +371,98 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 	}
 
 	respondWithJSON(w, http.StatusOK, transaction)
+}
+
+func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) {
+	type UpdateTransactionInput struct {
+		TransactionID              *uuid.UUID `json:"transactionId"`
+		AccountID                  *uuid.UUID `json:"accountId"`
+		CreditCardID               *uuid.UUID `json:"creditCardId"`
+		CategoryID                 *uuid.UUID `json:"categoryId"`
+		RecurringTransactionID     *uuid.UUID `json:"recurringTransactionId"`
+		Date                       *string    `json:"date"`
+		Description                *string    `json:"description"`
+		Amount                     *float32   `json:"amount"`
+		UpdateRecurringTransaction bool       `json:"updateRecurringTransaction"`
+	}
+
+	updateInput := UpdateTransactionInput{}
+	if err := json.NewDecoder(r.Body).Decode(&updateInput); err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if updateInput.TransactionID == nil && updateInput.RecurringTransactionID == nil {
+		respondWithJSON(w, http.StatusBadRequest, "transactionId or recurringTransactionId is required")
+		return
+	}
+
+	var transactionDate *time.Time
+	if updateInput.Date != nil {
+		date, err := time.Parse("2006-01-02", *updateInput.Date)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		transactionDate = &date
+	}
+
+	if updateInput.TransactionID != nil && *updateInput.TransactionID != uuid.Nil {
+		transaction, err := s.store.GetTransactionByID(*updateInput.TransactionID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if transaction == nil {
+			respondWithError(w, http.StatusBadRequest, "transaction not found")
+			return
+		}
+
+		transactionToUpdate := &types.TransactionToUpdate{
+			AccountID:              updateInput.AccountID,
+			CreditCardID:           updateInput.CreditCardID,
+			CategoryID:             updateInput.CategoryID,
+			Amount:                 updateInput.Amount,
+			Description:            updateInput.Description,
+			Date:                   transactionDate,
+			RecurringTransactionID: updateInput.RecurringTransactionID,
+		}
+
+		err = s.store.UpdateTransaction(*updateInput.TransactionID, transactionToUpdate)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	if updateInput.RecurringTransactionID != nil && *updateInput.RecurringTransactionID != uuid.Nil && updateInput.UpdateRecurringTransaction {
+		recurringTransaction, err := s.store.GetRecurringTransactionByID(*updateInput.RecurringTransactionID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		if recurringTransaction == nil {
+			respondWithError(w, http.StatusBadRequest, "recurring transaction not found")
+			return
+		}
+
+		recurringTransactionToUpdate := &types.RecurringTransactionToUpdate{
+			AccountID:    updateInput.AccountID,
+			CreditCardID: updateInput.CreditCardID,
+			CategoryID:   updateInput.CategoryID,
+			Amount:       updateInput.Amount,
+			Description:  updateInput.Description,
+		}
+
+		if transactionDate != nil {
+			recurringTransactionToUpdate.Day = lo.ToPtr(transactionDate.Day())
+		}
+
+		if err := s.store.UpdateRecurringTransaction(*updateInput.RecurringTransactionID, recurringTransactionToUpdate); err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	}
+
+	respondWithJSON(w, http.StatusOK, "Transaction updated")
 }
