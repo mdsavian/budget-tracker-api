@@ -376,13 +376,13 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Request) {
 	type UpdateTransactionInput struct {
 		TransactionID              *uuid.UUID `json:"transactionId"`
-		AccountID                  *uuid.UUID `json:"accountId"`
+		AccountID                  uuid.UUID  `json:"accountId"`
 		CreditCardID               *uuid.UUID `json:"creditCardId"`
-		CategoryID                 *uuid.UUID `json:"categoryId"`
+		CategoryID                 uuid.UUID  `json:"categoryId"`
 		RecurringTransactionID     *uuid.UUID `json:"recurringTransactionId"`
-		Date                       *string    `json:"date"`
-		Description                *string    `json:"description"`
-		Amount                     *float32   `json:"amount"`
+		Date                       string     `json:"date"`
+		Description                string     `json:"description"`
+		Amount                     float32    `json:"amount"`
 		UpdateRecurringTransaction bool       `json:"updateRecurringTransaction"`
 	}
 
@@ -397,38 +397,43 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var transactionDate *time.Time
-	if updateInput.Date != nil {
-		date, err := time.Parse("2006-01-02", *updateInput.Date)
-		if err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		transactionDate = &date
+	transactionDate, err := time.Parse("2006-01-02", updateInput.Date)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	transaction := &types.Transaction{
+		AccountID:              updateInput.AccountID,
+		CreditCardID:           updateInput.CreditCardID,
+		CategoryID:             updateInput.CategoryID,
+		Amount:                 updateInput.Amount,
+		Description:            updateInput.Description,
+		Date:                   transactionDate,
+		RecurringTransactionID: updateInput.RecurringTransactionID,
 	}
 
 	if updateInput.TransactionID != nil && *updateInput.TransactionID != uuid.Nil {
-		transaction, err := s.store.GetTransactionByID(*updateInput.TransactionID)
+		transactionFromDb, err := s.store.GetTransactionByID(*updateInput.TransactionID)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if transaction == nil {
+		if transactionFromDb == nil {
 			respondWithError(w, http.StatusBadRequest, "transaction not found")
 			return
 		}
 
-		transactionToUpdate := &types.TransactionToUpdate{
-			AccountID:              updateInput.AccountID,
-			CreditCardID:           updateInput.CreditCardID,
-			CategoryID:             updateInput.CategoryID,
-			Amount:                 updateInput.Amount,
-			Description:            updateInput.Description,
-			Date:                   transactionDate,
-			RecurringTransactionID: updateInput.RecurringTransactionID,
+		err = s.store.UpdateTransaction(*updateInput.TransactionID, transaction)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
 		}
-
-		err = s.store.UpdateTransaction(*updateInput.TransactionID, transactionToUpdate)
+	} else if !updateInput.UpdateRecurringTransaction {
+		// if dont update recurring and dont have transaction ID we need to create a new transaction
+		transaction.ID = uuid.Must(uuid.NewV7())
+		transaction.TransactionType = types.TransactionTypeDebit
+		err := s.store.CreateTransaction(transaction)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
@@ -446,16 +451,13 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		recurringTransactionToUpdate := &types.RecurringTransactionToUpdate{
+		recurringTransactionToUpdate := &types.RecurringTransaction{
 			AccountID:    updateInput.AccountID,
 			CreditCardID: updateInput.CreditCardID,
 			CategoryID:   updateInput.CategoryID,
 			Amount:       updateInput.Amount,
 			Description:  updateInput.Description,
-		}
-
-		if transactionDate != nil {
-			recurringTransactionToUpdate.Day = lo.ToPtr(transactionDate.Day())
+			Day:          transactionDate.Day(),
 		}
 
 		if err := s.store.UpdateRecurringTransaction(*updateInput.RecurringTransactionID, recurringTransactionToUpdate); err != nil {

@@ -14,14 +14,14 @@ type Storage interface {
 	// Recurring Transaction
 	CreateRecurringTransaction(*types.RecurringTransaction) error
 	ArchiveRecurringTransaction(uuid.UUID) error
-	UpdateRecurringTransaction(uuid.UUID, *types.RecurringTransactionToUpdate) error
+	UpdateRecurringTransaction(uuid.UUID, *types.RecurringTransaction) error
 	GetRecurringTransactionByID(uuid.UUID) (*types.RecurringTransaction, error)
 
 	// Transaction
 	CreateTransaction(*types.Transaction) error
 	GetTransactionByID(uuid.UUID) (*types.Transaction, error)
 	GetTransactionsWithRecurringByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
-	UpdateTransaction(uuid.UUID, *types.TransactionToUpdate) error
+	UpdateTransaction(uuid.UUID, *types.Transaction) error
 	FulfillTransaction(uuid.UUID) error
 
 	// CreditCard

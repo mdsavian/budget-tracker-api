@@ -139,10 +139,10 @@ func (s *PostgresStore) ArchiveRecurringTransaction(recurringTransactionID uuid.
 	return nil
 }
 
-func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransactionToUpdate) error {
+func (s *PostgresStore) UpdateRecurringTransaction(recurringTransactionID uuid.UUID, update *types.RecurringTransaction) error {
 	query := `UPDATE recurring_transaction SET 
 		account_id = COALESCE($1, account_id),
-		creditcard_id = COALESCE($2, creditcard_id),
+		creditcard_id = $2,
 		category_id = COALESCE($3, category_id),
 		day = COALESCE($4, day),
 		description = COALESCE($5, description),
@@ -248,8 +248,8 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.Description,
 		transaction.Amount,
 		transaction.Fulfilled,
-		transaction.CreatedAt,
-		transaction.UpdatedAt)
+		time.Now(),
+		time.Now())
 	if err != nil {
 		return err
 	}
@@ -268,10 +268,10 @@ func (s *PostgresStore) FulfillTransaction(transactionID uuid.UUID) error {
 	return err
 }
 
-func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types.TransactionToUpdate) error {
+func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types.Transaction) error {
 	query := `UPDATE "transaction" SET 
 		account_id = COALESCE($1, account_id),
-		creditcard_id = COALESCE($2, creditcard_id),
+		creditcard_id = $2,
 		category_id = COALESCE($3, category_id),
 		date = COALESCE($4, date),
 		description = COALESCE($5, description),
