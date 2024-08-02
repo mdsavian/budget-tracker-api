@@ -494,9 +494,59 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *APIServer) handleGetTransactionByID(w http.ResponseWriter, r *http.Request) {
-	uTransactionID, err := getAndParseIDFromRequest(r)
+	queryValues := r.URL.Query()
+	transactionId := queryValues.Get("id")
+	isRecurringQueryParam := queryValues.Get("isRecurring")
+	transactionDate := queryValues.Get("date")
+
+	if transactionId == "" {
+		respondWithError(w, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	isRecurring, err := strconv.ParseBool(isRecurringQueryParam)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var parsedTransactionDate time.Time
+	if transactionDate != "" {
+		parsedTransactionDate, err = time.Parse("02/01/2006", transactionDate)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+	} else {
+		parsedTransactionDate = time.Now().UTC()
+	}
+
+	uTransactionID, err := uuid.Parse(transactionId)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if isRecurring {
+		recurringTransaction, err := s.store.GetRecurringTransactionByID(uTransactionID)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		transactionFormatted := &types.Transaction{
+			AccountID:              recurringTransaction.AccountID,
+			CreditCardID:           recurringTransaction.CreditCardID,
+			CategoryID:             recurringTransaction.CategoryID,
+			RecurringTransactionID: &recurringTransaction.ID,
+			TransactionType:        recurringTransaction.TransactionType,
+			Date:                   parsedTransactionDate,
+			Description:            recurringTransaction.Description,
+			Amount:                 recurringTransaction.Amount,
+			Fulfilled:              false,
+		}
+
+		respondWithJSON(w, http.StatusOK, transactionFormatted)
 		return
 	}
 
