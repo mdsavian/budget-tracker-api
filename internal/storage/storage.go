@@ -258,6 +258,12 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 	return nil
 }
 
+func (s *PostgresStore) DeleteTransaction(transacionID uuid.UUID) error {
+	query := `delete from "transaction" where id = $1`
+	_, err := s.db.Exec(query, transacionID)
+	return err
+}
+
 func (s *PostgresStore) FulfillTransaction(transactionID uuid.UUID) error {
 	query := `UPDATE "transaction" 
 		SET fulfilled = $1,

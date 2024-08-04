@@ -18,6 +18,7 @@ type Storage interface {
 	GetRecurringTransactionByID(uuid.UUID) (*types.RecurringTransaction, error)
 
 	// Transaction
+	DeleteTransaction(uuid.UUID) error
 	CreateTransaction(*types.Transaction) error
 	GetTransactionByID(uuid.UUID) (*types.Transaction, error)
 	GetTransactionsWithRecurringByDate(startDate, endate time.Time) ([]*types.TransactionView, error)
@@ -76,6 +77,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /dashboard", s.validateSession(s.handleGetDashboardInfo))
 	mux.HandleFunc("GET /dashboard/transaction", s.validateSession(s.handleGetTransactionsByDate))
 
+	mux.HandleFunc("DELETE /transaction/{id}", s.validateSession(s.handleDeleteTransaction))
 	mux.HandleFunc("GET /transaction", s.validateSession(s.handleGetTransactionByID))
 	mux.HandleFunc("POST /transaction/income", s.validateSession(s.handleCreateIncome))
 	mux.HandleFunc("POST /transaction/expense", s.validateSession(s.handleCreateExpense))

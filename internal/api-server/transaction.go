@@ -558,3 +558,19 @@ func (s *APIServer) handleGetTransactionByID(w http.ResponseWriter, r *http.Requ
 
 	respondWithJSON(w, http.StatusOK, transaction)
 }
+
+func (s *APIServer) handleDeleteTransaction(w http.ResponseWriter, r *http.Request) {
+	transactionID, err := getAndParseIDFromRequest(r)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = s.store.DeleteTransaction(transactionID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, "Transaction deleted")
+}
