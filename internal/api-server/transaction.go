@@ -176,14 +176,13 @@ func (s *APIServer) createRecurringCreditCardExpense(creditCardExpenseInput Crea
 
 func (s *APIServer) handleCreateExpense(w http.ResponseWriter, r *http.Request) {
 	type CreateExpenseInput struct {
-		CategoryId   uuid.UUID  `json:"categoryId"`
-		CreditCardId *uuid.UUID `json:"creditCardId"`
-		AccountID    uuid.UUID  `json:"accountId"`
-		Amount       float32    `json:"amount"`
-		Date         string     `json:"date"`
-		Description  string     `json:"description"`
-		Fulfilled    bool       `json:"fulfilled"`
-		Fixed        bool       `json:"fixed"`
+		CategoryId  uuid.UUID `json:"categoryId"`
+		AccountID   uuid.UUID `json:"accountId"`
+		Amount      float32   `json:"amount"`
+		Date        string    `json:"date"`
+		Description string    `json:"description"`
+		Fulfilled   bool      `json:"fulfilled"`
+		Fixed       bool      `json:"fixed"`
 	}
 
 	expenseInput := CreateExpenseInput{}
@@ -318,8 +317,9 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 	}
 
 	transaction := &types.Transaction{}
+	var err error
 	if effectuateTransactionInout.TransactionID != uuid.Nil {
-		transaction, err := s.store.GetTransactionByID(effectuateTransactionInout.TransactionID)
+		transaction, err = s.store.GetTransactionByID(effectuateTransactionInout.TransactionID)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
@@ -364,7 +364,7 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 		}
 	}
 
-	err := s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transaction.TransactionType)
+	err = s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transaction.TransactionType)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 		return
