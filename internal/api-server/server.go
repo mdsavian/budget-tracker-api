@@ -79,9 +79,9 @@ func (s *APIServer) Start() {
 
 	mux.HandleFunc("DELETE /transaction/{id}", s.validateSession(s.handleDeleteTransaction))
 	mux.HandleFunc("GET /transaction", s.validateSession(s.handleGetTransactionByID))
-	mux.HandleFunc("POST /transaction/income", s.validateSession(s.handleCreateIncome))
-	mux.HandleFunc("POST /transaction/expense", s.validateSession(s.handleCreateExpense))
-	mux.HandleFunc("POST /transaction/expense/creditcard", s.validateSession(s.handleCreateCreditCardExpense))
+	mux.HandleFunc("POST /transaction/credit", s.validateSession(s.handleCreateCredit))
+	mux.HandleFunc("POST /transaction/debit", s.validateSession(s.handleCreateDebit))
+	mux.HandleFunc("POST /transaction/debit/creditcard", s.validateSession(s.handleCreateCreditCardDebit))
 	mux.HandleFunc("PUT /transaction/update", s.validateSession(s.handleUpdateTransaction))
 	mux.HandleFunc("POST /transaction/effectuate", s.validateSession(s.handleEffectuateTransaction))
 

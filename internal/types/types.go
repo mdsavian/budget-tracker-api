@@ -78,8 +78,8 @@ type CreditCard struct {
 type TransactionType string
 
 const (
-	TransactionTypeCredit TransactionType = "Receita"
-	TransactionTypeDebit  TransactionType = "Despesa"
+	TransactionTypeCredit TransactionType = "Credit"
+	TransactionTypeDebit  TransactionType = "Debit"
 )
 
 func (at TransactionType) String() string {
