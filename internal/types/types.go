@@ -97,7 +97,7 @@ type Transaction struct {
 	Date            time.Time       `json:"date"`
 	Description     string          `json:"description"`
 	Amount          float32         `json:"amount"`
-	Fulfilled       bool            `json:"paid"`
+	Fulfilled       bool            `json:"fulfilled"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -116,7 +116,7 @@ type TransactionView struct {
 	Date                   time.Time       `json:"date"`
 	Description            string          `json:"description"`
 	Amount                 float64         `json:"amount"`
-	Fulfilled              bool            `json:"paid"`
+	Fulfilled              bool            `json:"fulfilled"`
 }
 
 type RecurringTransaction struct {
