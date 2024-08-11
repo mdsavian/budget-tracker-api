@@ -233,9 +233,9 @@ func (s *PostgresStore) createTransactionTable() error {
 
 func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error {
 	query := `insert into "transaction" 
-	(id, account_id, creditcard_id, category_id, recurring_transaction_id, transaction_type, date, description, 
+	(id, account_id, creditcard_id, category_id, recurring_transaction_id, transaction_type, date,paid_date, description, 
 		amount, fulfilled, created_at, updated_at)
-	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+	values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	conn, err := s.db.Query(query,
 		transaction.ID,
@@ -245,6 +245,7 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 		transaction.RecurringTransactionID,
 		transaction.TransactionType,
 		transaction.Date,
+		transaction.PaidDate,
 		transaction.Description,
 		transaction.Amount,
 		transaction.Fulfilled,
@@ -267,7 +268,7 @@ func (s *PostgresStore) DeleteTransaction(transacionID uuid.UUID) error {
 func (s *PostgresStore) FulfillTransaction(transactionID uuid.UUID) error {
 	query := `UPDATE "transaction" 
 		SET fulfilled = $1,
-		date = $3,
+		paid_date = $3,
 		updated_at = $2 
 		where id = $4`
 	_, err := s.db.Exec(query, true, time.Now().UTC(), time.Now().UTC(), transactionID)
@@ -279,7 +280,7 @@ func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types
 		account_id = COALESCE($1, account_id),
 		creditcard_id = $2,
 		category_id = COALESCE($3, category_id),
-		date = COALESCE($4, date),
+		paid_date = COALESCE($4, date),
 		description = COALESCE($5, description),
 		amount = COALESCE($6, amount),
 		updated_at = $7
@@ -351,6 +352,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 		t.recurring_transaction_id,
 		t.transaction_type,
 		t.date, 
+		t.paid_date,
 		t.description, 
 		t.amount, 
 		t.fulfilled
@@ -363,7 +365,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 	LEFT JOIN 
 		account a ON a.id = t.account_id
 	WHERE 
-		t.date BETWEEN $1 AND $2
+		t.paid_date BETWEEN $1 AND $2
 	UNION ALL
 	SELECT 
 		NULL AS id,
@@ -376,6 +378,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 		r.recurring_transaction_id,
 		r.transaction_type,
 		r.occurrence_date AS date,
+		NULL as paid_date,
 		r.description, 
 		r.amount, 
 		false AS fulfilled
@@ -429,6 +432,7 @@ func scanIntoTransactionView(rows *sql.Rows) (*types.TransactionView, error) {
 		&transaction.RecurringTransactionID,
 		&transaction.TransactionType,
 		&transaction.Date,
+		&transaction.PaidDate,
 		&transaction.Description,
 		&transaction.Amount,
 		&transaction.Fulfilled,
@@ -450,7 +454,8 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 		&transaction.Amount,
 		&transaction.Fulfilled,
 		&transaction.CreatedAt,
-		&transaction.UpdatedAt)
+		&transaction.UpdatedAt,
+		&transaction.PaidDate)
 
 	return transaction, err
 }

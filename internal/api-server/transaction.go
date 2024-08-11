@@ -303,6 +303,7 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 		TransactionID          uuid.UUID `json:"transactionId"`
 		RecurringTransactionID uuid.UUID `json:"recurringTransactionId"`
 		Amount                 float32   `json:"amount"`
+		Date                   string    `json:"date"`
 	}
 
 	effectuateTransactionInout := &EffectuateTransactionInput{}
@@ -342,18 +343,25 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 			return
 		}
 
+		date, err := time.Parse("2006-01-02", effectuateTransactionInout.Date)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+
 		transaction = &types.Transaction{
 			ID:                     uuid.Must(uuid.NewV7()),
-			RecurringTransactionID: lo.ToPtr(recurringTransaction.ID),
-			CategoryID:             recurringTransaction.CategoryID,
 			AccountID:              recurringTransaction.AccountID,
 			CreditCardID:           recurringTransaction.CreditCardID,
+			CategoryID:             recurringTransaction.CategoryID,
+			RecurringTransactionID: lo.ToPtr(recurringTransaction.ID),
 			TransactionType:        types.TransactionTypeDebit,
-			Amount:                 effectuateTransactionInout.Amount,
-			Date:                   time.Now().UTC(),
+			PaidDate:               lo.ToPtr(time.Now().UTC()),
+			Date:                   date,
 			Description:            recurringTransaction.Description,
+			Amount:                 effectuateTransactionInout.Amount,
 			Fulfilled:              true,
-			CreatedAt:              time.Now().UTC(),
+			CreatedAt:              time.Time{},
 			UpdatedAt:              time.Now().UTC(),
 		}
 

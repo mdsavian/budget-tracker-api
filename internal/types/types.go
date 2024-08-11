@@ -95,6 +95,7 @@ type Transaction struct {
 
 	TransactionType TransactionType `json:"transactionType"`
 	Date            time.Time       `json:"date"`
+	PaidDate        *time.Time      `json:"paidDate"`
 	Description     string          `json:"description"`
 	Amount          float32         `json:"amount"`
 	Fulfilled       bool            `json:"fulfilled"`
@@ -114,6 +115,7 @@ type TransactionView struct {
 	RecurringTransactionID *uuid.UUID      `json:"recurringTransactionId"`
 	TransactionType        TransactionType `json:"transactionType"`
 	Date                   time.Time       `json:"date"`
+	PaidDate               *time.Time      `json:"paidDate"`
 	Description            string          `json:"description"`
 	Amount                 float64         `json:"amount"`
 	Fulfilled              bool            `json:"fulfilled"`
