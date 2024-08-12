@@ -356,7 +356,7 @@ func (s *APIServer) handleEffectuateTransaction(w http.ResponseWriter, r *http.R
 			CategoryID:             recurringTransaction.CategoryID,
 			RecurringTransactionID: lo.ToPtr(recurringTransaction.ID),
 			TransactionType:        types.TransactionTypeDebit,
-			PaidDate:               lo.ToPtr(time.Now().UTC()),
+			EffectuatedDate:        lo.ToPtr(time.Now().UTC()),
 			Date:                   date,
 			Description:            recurringTransaction.Description,
 			Amount:                 effectuateTransactionInout.Amount,
