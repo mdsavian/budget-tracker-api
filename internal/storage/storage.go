@@ -367,6 +367,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 		account a ON a.id = t.account_id
 	WHERE 
 		t.effectuated_date BETWEEN $1 AND $2
+	OR (t.date BETWEEN $1 AND $2 AND t.recurring_transaction_id IS NULL)
 	UNION ALL
 	SELECT 
 		NULL AS id,
