@@ -284,8 +284,9 @@ func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types
 		effectuated_date = COALESCE($4, date),
 		description = COALESCE($5, description),
 		amount = COALESCE($6, amount),
-		updated_at = $7
-		WHERE id = $8`
+		fulfilled = COALESCE($7, fulfilled),
+		updated_at = $8
+		WHERE id = $9`
 
 	conn, err := s.db.Query(query,
 		update.AccountID,
@@ -294,6 +295,7 @@ func (s *PostgresStore) UpdateTransaction(transactionID uuid.UUID, update *types
 		update.Date,
 		update.Description,
 		update.Amount,
+		update.Fulfilled,
 		time.Now().UTC(),
 		transactionID)
 	if err != nil {

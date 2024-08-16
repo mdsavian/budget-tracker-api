@@ -2,6 +2,8 @@ package apiserver
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -392,6 +394,7 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 		Description                string     `json:"description"`
 		Amount                     float32    `json:"amount"`
 		UpdateRecurringTransaction bool       `json:"updateRecurringTransaction"`
+		Fulfilled                  bool       `json:"fulfilled"`
 	}
 
 	updateInput := UpdateTransactionInput{}
@@ -423,7 +426,6 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 		}
 
 		uRecurringTransactionID = &parsedRecurringTransactionID
-
 	}
 
 	if updateInput.CreditCardID != nil && *updateInput.CreditCardID != "" {
@@ -443,6 +445,7 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 		Description:            updateInput.Description,
 		Date:                   transactionDate,
 		RecurringTransactionID: uRecurringTransactionID,
+		Fulfilled:              updateInput.Fulfilled,
 	}
 
 	if updateInput.TransactionID != nil && *updateInput.TransactionID != uuid.Nil {
@@ -461,18 +464,42 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-	} else if !updateInput.UpdateRecurringTransaction {
-		// if dont update recurring and dont have transaction ID we need to create a new transaction
-		transaction.ID = uuid.Must(uuid.NewV7())
-		transaction.TransactionType = types.TransactionTypeDebit
-		err := s.store.CreateTransaction(transaction)
-		if err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
+		log.Println("transactionFromDb.Fulfilled", transactionFromDb.Fulfilled, "updateInput.Fulfilled", updateInput.Fulfilled)
+
+		//TODO verify if the account changed and update the balance
+
+		if updateInput.Fulfilled && !transactionFromDb.Fulfilled {
+			err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount, transactionFromDb.TransactionType)
+			if err != nil {
+				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
+				return
+			}
+		}
+
+		if updateInput.Fulfilled && transactionFromDb.Fulfilled && updateInput.Amount != transactionFromDb.Amount {
+			err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount-transactionFromDb.Amount, transactionFromDb.TransactionType)
+			if err != nil {
+				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
+				return
+			}
+		}
+
+		// revert transaction payment
+		if transactionFromDb.Fulfilled && !updateInput.Fulfilled {
+			transactionType := types.TransactionTypeDebit
+			if transactionFromDb.TransactionType == types.TransactionTypeDebit {
+				transactionType = types.TransactionTypeCredit
+			}
+
+			err = s.store.UpdateAccountBalance(transactionFromDb.AccountID, transactionFromDb.Amount, transactionType)
+			if err != nil {
+				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
+				return
+			}
 		}
 	}
 
-	if uRecurringTransactionID != nil && *uRecurringTransactionID != uuid.Nil && updateInput.UpdateRecurringTransaction {
+	if uRecurringTransactionID != nil && *uRecurringTransactionID != uuid.Nil {
 		recurringTransaction, err := s.store.GetRecurringTransactionByID(*uRecurringTransactionID)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
@@ -483,18 +510,40 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
-		recurringTransactionToUpdate := &types.RecurringTransaction{
-			AccountID:    updateInput.AccountID,
-			CreditCardID: uCreditCardID,
-			CategoryID:   updateInput.CategoryID,
-			Amount:       updateInput.Amount,
-			Description:  updateInput.Description,
-			Day:          transactionDate.Day(),
+		if !updateInput.UpdateRecurringTransaction && updateInput.TransactionID == nil || *updateInput.TransactionID == uuid.Nil {
+			// if dont update recurring and dont have transaction ID means the transaction has just the recurring info and we need to create a new transaction
+			transaction.ID = uuid.Must(uuid.NewV7())
+			transaction.TransactionType = recurringTransaction.TransactionType
+			err := s.store.CreateTransaction(transaction)
+			if err != nil {
+				respondWithError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			if updateInput.Fulfilled {
+				err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount, transaction.TransactionType)
+				if err != nil {
+					respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
+					return
+				}
+			}
+			respondWithJSON(w, http.StatusOK, "Transaction updated")
 		}
 
-		if err := s.store.UpdateRecurringTransaction(*uRecurringTransactionID, recurringTransactionToUpdate); err != nil {
-			respondWithError(w, http.StatusBadRequest, err.Error())
-			return
+		if updateInput.UpdateRecurringTransaction {
+			recurringTransactionToUpdate := &types.RecurringTransaction{
+				AccountID:    updateInput.AccountID,
+				CreditCardID: uCreditCardID,
+				CategoryID:   updateInput.CategoryID,
+				Amount:       updateInput.Amount,
+				Description:  updateInput.Description,
+				Day:          transactionDate.Day(),
+			}
+
+			if err := s.store.UpdateRecurringTransaction(*uRecurringTransactionID, recurringTransactionToUpdate); err != nil {
+				respondWithError(w, http.StatusBadRequest, err.Error())
+				return
+			}
 		}
 	}
 
