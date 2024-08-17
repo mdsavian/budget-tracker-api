@@ -223,7 +223,9 @@ func (s *PostgresStore) createTransactionTable() error {
 		CONSTRAINT "transaction_category" FOREIGN KEY ("category_id") REFERENCES "category" ("id"),
 		CONSTRAINT "transaction_recurring" FOREIGN KEY ("recurring_transaction_id") REFERENCES "recurring_transaction" ("id")
 	);
-		ALTER TABLE "transaction" ADD COLUMN IF NOT EXISTS "effectuated_date" date;`
+		ALTER TABLE "transaction" ADD COLUMN IF NOT EXISTS "effectuated_date" date;
+		ALTER TABLE "transaction" ADD COLUMN IF NOT EXISTS "archived" boolean NOT NULL DEFAULT false;`
+
 	_, err := s.db.Exec(query)
 	if err != nil {
 		return err
@@ -261,8 +263,8 @@ func (s *PostgresStore) CreateTransaction(transaction *types.Transaction) error 
 }
 
 func (s *PostgresStore) DeleteTransaction(transacionID uuid.UUID) error {
-	query := `delete from "transaction" where id = $1`
-	_, err := s.db.Exec(query, transacionID)
+	query := `UPDATE "transaction" SET archived = true, updated_at = $1 WHERE id = $2`
+	_, err := s.db.Exec(query, time.Now().UTC(), transacionID)
 	return err
 }
 
@@ -369,7 +371,8 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 		account a ON a.id = t.account_id
 	WHERE 
 		(t.effectuated_date IS NOT NULL AND t.effectuated_date BETWEEN $1 AND $2)
-	OR (t.date BETWEEN $1 AND $2)
+		OR (t.date BETWEEN $1 AND $2)
+		AND t.archived = false
 	UNION ALL
 	SELECT 
 		NULL AS id,
@@ -393,6 +396,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 	ON 
 		t.date = r.occurrence_date 
 		AND t.recurring_transaction_id = r.recurring_transaction_id
+		AND t.archived = false
 	LEFT JOIN 
 		credit_card c ON c.id = r.creditcard_id 
 	LEFT JOIN 
@@ -402,7 +406,7 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 	WHERE 
 		t.id IS NULL
 	ORDER BY 
-		date;`
+		date desc;`
 
 	rows, err := s.db.Query(query, startDate, endDate)
 	if err != nil {
@@ -459,7 +463,8 @@ func scanIntoTransaction(rows *sql.Rows) (*types.Transaction, error) {
 		&transaction.Fulfilled,
 		&transaction.CreatedAt,
 		&transaction.UpdatedAt,
-		&transaction.EffectuatedDate)
+		&transaction.EffectuatedDate,
+		&transaction.Archived)
 
 	return transaction, err
 }

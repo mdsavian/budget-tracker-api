@@ -77,7 +77,7 @@ func (s *APIServer) Start() {
 	mux.HandleFunc("GET /dashboard", s.validateSession(s.handleGetDashboardInfo))
 	mux.HandleFunc("GET /dashboard/transaction", s.validateSession(s.handleGetTransactionsByDate))
 
-	mux.HandleFunc("DELETE /transaction/{id}", s.validateSession(s.handleDeleteTransaction))
+	mux.HandleFunc("POST /transaction", s.validateSession(s.handleDeleteTransaction))
 	mux.HandleFunc("GET /transaction", s.validateSession(s.handleGetTransactionByID))
 	mux.HandleFunc("POST /transaction/credit", s.validateSession(s.handleCreateCredit))
 	mux.HandleFunc("POST /transaction/debit", s.validateSession(s.handleCreateDebit))

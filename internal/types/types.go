@@ -99,6 +99,7 @@ type Transaction struct {
 	Description     string          `json:"description"`
 	Amount          float32         `json:"amount"`
 	Fulfilled       bool            `json:"fulfilled"`
+	Archived        bool            `json:"archived"`
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`

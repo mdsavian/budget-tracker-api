@@ -608,13 +608,86 @@ func (s *APIServer) handleGetTransactionByID(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *APIServer) handleDeleteTransaction(w http.ResponseWriter, r *http.Request) {
-	transactionID, err := getAndParseIDFromRequest(r)
-	if err != nil {
+	type DeleteTransactionInput struct {
+		TransactionID uuid.UUID `json:"transactionId"`
+		IsRecurring   bool      `json:"isRecurring"`
+		Date          string    `json:"date"`
+	}
+
+	deleteInput := DeleteTransactionInput{}
+	if err := json.NewDecoder(r.Body).Decode(&deleteInput); err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	err = s.store.DeleteTransaction(transactionID)
+	// TODO deal with recurring transaction
+	// date, err := time.Parse("2006-01-02", deleteInput.Date)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error parsing date err: %s", err.Error()))
+	// }
+
+	// if deleteInput.IsRecurring {
+	// 	// create an archived transaction with recurring infos
+	// 	recurringTransaction, err := s.store.GetRecurringTransactionByID(deleteInput.TransactionID)
+	// 	if err != nil {
+	// 		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error getting transaction err: %s", err.Error()))
+	// 		return
+	// 	}
+	// 	if recurringTransaction == nil {
+	// 		respondWithError(w, http.StatusBadRequest, "transaction not found")
+	// 		return
+	// 	}
+
+	// 	newTransaction := &types.Transaction{
+	// 		ID:                     uuid.Must(uuid.NewV7()),
+	// 		TransactionType:        recurringTransaction.TransactionType,
+	// 		AccountID:              recurringTransaction.AccountID,
+	// 		CreditCardID:           recurringTransaction.CreditCardID,
+	// 		CategoryID:             recurringTransaction.CategoryID,
+	// 		RecurringTransactionID: &recurringTransaction.ID,
+	// 		Date:                   date,
+	// 		Description:            recurringTransaction.Description,
+	// 		Amount:                 recurringTransaction.Amount,
+	// 		Fulfilled:              false,
+	// 		Archived:               true,
+	// 		CreatedAt:              time.Now().UTC(),
+	// 		UpdatedAt:              time.Now().UTC(),
+	// 	}
+	// 	err = s.store.CreateTransaction(newTransaction)
+	// 	if err != nil {
+	// 		respondWithError(w, http.StatusBadRequest, err.Error())
+	// 		return
+	// 	}
+	// 	respondWithJSON(w, http.StatusOK, "Transaction deleted")
+	// 	return
+	// }
+
+	transaction, err := s.store.GetTransactionByID(deleteInput.TransactionID)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("error getting transaction err: %s", err.Error()))
+		return
+	}
+
+	if transaction.Archived {
+		respondWithError(w, http.StatusBadGateway, "Transaction is archived")
+		return
+	}
+
+	if transaction.Fulfilled {
+		transactionType := types.TransactionTypeDebit
+		if transaction.TransactionType == types.TransactionTypeDebit {
+			transactionType = types.TransactionTypeCredit
+		}
+
+		err = s.store.UpdateAccountBalance(transaction.AccountID, transaction.Amount, transactionType)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	err = s.store.DeleteTransaction(deleteInput.TransactionID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error())
 		return
