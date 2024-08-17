@@ -3,7 +3,6 @@ package apiserver
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -464,34 +463,26 @@ func (s *APIServer) handleUpdateTransaction(w http.ResponseWriter, r *http.Reque
 			respondWithError(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		log.Println("transactionFromDb.Fulfilled", transactionFromDb.Fulfilled, "updateInput.Fulfilled", updateInput.Fulfilled)
 
-		//TODO verify if the account changed and update the balance
-
-		if updateInput.Fulfilled && !transactionFromDb.Fulfilled {
-			err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount, transactionFromDb.TransactionType)
-			if err != nil {
-				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
-				return
-			}
-		}
-
-		if updateInput.Fulfilled && transactionFromDb.Fulfilled && updateInput.Amount != transactionFromDb.Amount {
-			err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount-transactionFromDb.Amount, transactionFromDb.TransactionType)
-			if err != nil {
-				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
-				return
-			}
-		}
-
-		// revert transaction payment
-		if transactionFromDb.Fulfilled && !updateInput.Fulfilled {
+		// revert transaction payment from old transaction
+		transactionPaymentReverted := false
+		if updateInput.AccountID != transactionFromDb.AccountID || (transactionFromDb.Fulfilled && updateInput.Amount != transactionFromDb.Amount) ||
+			(!updateInput.Fulfilled && transactionFromDb.Fulfilled) {
 			transactionType := types.TransactionTypeDebit
 			if transactionFromDb.TransactionType == types.TransactionTypeDebit {
 				transactionType = types.TransactionTypeCredit
 			}
 
 			err = s.store.UpdateAccountBalance(transactionFromDb.AccountID, transactionFromDb.Amount, transactionType)
+			if err != nil {
+				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
+				return
+			}
+			transactionPaymentReverted = true
+		}
+
+		if updateInput.Fulfilled && transactionPaymentReverted || (updateInput.Fulfilled && !transactionFromDb.Fulfilled) {
+			err = s.store.UpdateAccountBalance(updateInput.AccountID, updateInput.Amount, transactionFromDb.TransactionType)
 			if err != nil {
 				respondWithError(w, http.StatusInternalServerError, fmt.Sprintf("error updating account balance err: %s", err.Error()))
 				return
