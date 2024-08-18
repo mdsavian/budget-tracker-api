@@ -370,8 +370,8 @@ func (s *PostgresStore) GetTransactionsWithRecurringByDate(startDate, endDate ti
 	LEFT JOIN 
 		account a ON a.id = t.account_id
 	WHERE 
-		(t.effectuated_date IS NOT NULL AND t.effectuated_date BETWEEN $1 AND $2)
-		OR (t.date BETWEEN $1 AND $2)
+		((t.effectuated_date IS NOT NULL AND t.effectuated_date BETWEEN $1 AND $2)
+		OR (t.date BETWEEN $1 AND $2))
 		AND t.archived = false
 	UNION ALL
 	SELECT 
