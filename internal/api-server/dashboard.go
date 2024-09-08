@@ -34,13 +34,16 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	}
 
 	type DashboardInfo struct {
-		Transactions     []*types.TransactionView `json:"transactions"`
-		TotalCredit      float64                  `json:"totalCredit"`
-		TotalDebit       float64                  `json:"totalDebit"`
-		TotalDebitUnpaid float64                  `json:"totalDebitUnpaid"`
-		TotalCreditCard  float64                  `json:"totalCreditCard"`
-		CategoryTotals   []CategoryTotal          `json:"categoryTotals"`
-		Accounts         []*types.Account         `json:"accounts"`
+		Transactions            []*types.TransactionView `json:"transactions"`
+		TotalCredit             float64                  `json:"totalCredit"`
+		TotalDebit              float64                  `json:"totalDebit"`
+		TotalDebitUnpaid        float64                  `json:"totalDebitUnpaid"`
+		TotalCreditUpcoming     float64                  `json:"totalCreditUpcoming"`
+		TotalCreditCard         float64                  `json:"totalCreditCard"`
+		TotalCreditCardUpcoming float64                  `json:"totalCreditCardUpcoming"`
+		CategoryTotals          []CategoryTotal          `json:"categoryTotals"`
+		Balance                 float64                  `json:"balance"`
+		Accounts                []*types.Account         `json:"accounts"`
 	}
 
 	transactions, err := s.store.GetTransactionsWithRecurringByDate(startDateParsed, endDateParsed)
@@ -53,23 +56,39 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 	var totalCredit float64 = 0
 	var totalDebit float64 = 0
 	var totalDebitUnpaid float64 = 0
-
+	var totalCreditUpcoming float64 = 0
+	var totalCreditCardUpcoming float64 = 0
 	var totalCreditCard float64 = 0
 	var categoryMap = map[string]float64{}
 
 	for _, transaction := range transactions {
 		if transaction.TransactionType == types.TransactionTypeCredit {
-			totalCredit += transaction.Amount
+			if !transaction.Fulfilled {
+				totalCreditUpcoming += transaction.Amount
+			} else {
+				totalCredit += transaction.Amount
+			}
 		} else if transaction.TransactionType == types.TransactionTypeDebit {
-			totalDebit += transaction.Amount
+
 			if !transaction.Fulfilled {
 				totalDebitUnpaid += transaction.Amount
+			} else {
+				totalDebit += transaction.Amount
 			}
+
 			categoryMap[transaction.Category] += transaction.Amount
 		}
 
 		if transaction.CreditCardID != nil {
-			totalCreditCard += transaction.Amount
+			if transaction.TransactionType == types.TransactionTypeDebit {
+				totalCreditCard += transaction.Amount
+			} else if transaction.TransactionType == types.TransactionTypeCredit {
+				if transaction.Fulfilled {
+					totalCreditCard -= transaction.Amount
+				} else {
+					totalCreditCardUpcoming += transaction.Amount
+				}
+			}
 		}
 	}
 
@@ -84,14 +103,19 @@ func (s *APIServer) handleGetDashboardInfo(w http.ResponseWriter, r *http.Reques
 		categoryTotals = append(categoryTotals, CategoryTotal{Name: category, Total: total})
 	}
 
+	balance := totalCredit + totalCreditUpcoming - (totalDebit + totalDebitUnpaid)
+
 	dashboardInfo := DashboardInfo{
-		Transactions:     transactions,
-		TotalCredit:      totalCredit,
-		TotalDebit:       totalDebit,
-		TotalCreditCard:  totalCreditCard,
-		TotalDebitUnpaid: totalDebitUnpaid,
-		CategoryTotals:   categoryTotals,
-		Accounts:         accounts,
+		Transactions:            transactions,
+		TotalCredit:             totalCredit,
+		TotalDebit:              totalDebit,
+		TotalCreditCard:         totalCreditCard,
+		TotalDebitUnpaid:        totalDebitUnpaid,
+		TotalCreditUpcoming:     totalCreditUpcoming,
+		TotalCreditCardUpcoming: totalCreditCardUpcoming,
+		CategoryTotals:          categoryTotals,
+		Balance:                 balance,
+		Accounts:                accounts,
 	}
 
 	respondWithJSON(w, http.StatusOK, dashboardInfo)
