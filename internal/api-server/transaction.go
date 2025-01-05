@@ -35,7 +35,7 @@ func (s *APIServer) handleCreateCreditCardDebit(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if debitInput.Installments > 0 && debitInput.Fixed {
+	if debitInput.Installments > 1 && debitInput.Fixed {
 		respondWithError(w, http.StatusBadRequest, "installments and fixed cannot be used together")
 		return
 	}
@@ -69,7 +69,7 @@ func (s *APIServer) handleCreateCreditCardDebit(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if debitInput.Installments > 0 {
+	if debitInput.Installments > 1 {
 		firstInstallmentTransaction, err := s.createCreditCardDebitInstallments(debitInput, creditCardDebitDate)
 		if err != nil {
 			respondWithError(w, http.StatusBadRequest, err.Error())
